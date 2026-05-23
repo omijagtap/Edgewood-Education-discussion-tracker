@@ -537,7 +537,7 @@
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="ta-highlight-cards"></div>
 
                 <!-- TA Volume Stats: Most/Least Replied + Fastest/Slowest -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="ta-volume-cards"></div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" id="ta-volume-cards"></div>
 
                 <!-- Full TA Leaderboard Table -->
                 <div class="ultra-glass p-5 rounded-3xl flex flex-col">
@@ -554,8 +554,6 @@
                                     <th class="py-2 pl-2 font-medium uppercase tracking-wider w-6">#</th>
                                     <th class="py-2 font-medium uppercase tracking-wider">TA / SME Name</th>
                                     <th class="py-2 font-medium uppercase tracking-wider text-center">Total Replied</th>
-                                    <th class="py-2 font-medium uppercase tracking-wider text-center">Pending
-                                        (Unanswered)</th>
                                     <th class="py-2 font-medium uppercase tracking-wider text-center">Avg Response</th>
                                     <th class="py-2 font-medium uppercase tracking-wider text-center">On-Time</th>
                                     <th class="py-2 font-medium uppercase tracking-wider text-center">Delayed</th>
@@ -913,7 +911,7 @@
             // Build TA map from replied queries
             const taMap = {};
             queries.forEach(q => {
-                const taName = q.replied_by_name || q.first_responder;
+                const taName = q.first_responder;
                 if (!taName || taName === "N/A" || q.replied !== "Yes") return;
                 if (!taMap[taName]) {
                     taMap[taName] = { name: taName, replies: 0, onTime: 0, delayed: 0, durations: [], courses: new Set() };
@@ -924,11 +922,11 @@
                 else if (q.sla_status === "Delayed Response") taMap[taName].delayed++;
                 if (typeof q.duration_hours === 'number' && !isNaN(q.duration_hours)) taMap[taName].durations.push(q.duration_hours);
             });
-
+ 
             // Count pending per TA (unanswered queries where TA is the responder reference)
             const taPendingMap = {};
             queries.forEach(q => {
-                const taName = q.replied_by_name || q.first_responder;
+                const taName = q.first_responder;
                 if (!taName || taName === "N/A") return;
                 if (q.replied === "No" && q.learner_name && q.learner_name !== "(No student posts yet)") {
                     taPendingMap[taName] = (taPendingMap[taName] || 0) + 1;
@@ -965,7 +963,7 @@
              tas.sort((a, b) => b.combinedScore - a.combinedScore || b.replies - a.replies);
  
              if (tas.length === 0) {
-                 if (taLeaderboard) taLeaderboard.innerHTML = `<tr><td colspan="9" class="py-4 text-center text-white/40 italic">No TA performance data available yet.</td></tr>`;
+                 if (taLeaderboard) taLeaderboard.innerHTML = `<tr><td colspan="8" class="py-4 text-center text-white/40 italic">No TA performance data available yet.</td></tr>`;
                  if (taWorkload) taWorkload.innerHTML = `<div class="py-4 text-center text-white/40 italic text-xs">No TA workload data.</div>`;
                  if (taHighlightCards) taHighlightCards.innerHTML = `<div class="col-span-4 ultra-glass p-6 rounded-2xl text-center text-white/30 text-xs">No TA data for this filter.</div>`;
                  return;
@@ -1010,7 +1008,6 @@
              if (taVolumeCards) {
                  const tasWT = tas.filter(t => t.durations.length > 0);
                  const fastestTA = tasWT.length > 0 ? [...tasWT].sort((a, b) => a.avgTime - b.avgTime)[0] : null;
-                 const slowestTA = tasWT.length > 0 ? [...tasWT].sort((a, b) => b.avgTime - a.avgTime)[0] : null;
                  const leastReplied = [...tas].sort((a, b) => a.replies - b.replies)[0];
                  const bestOnTime = [...tas].sort((a, b) => b.onTime - a.onTime)[0];
  
@@ -1024,13 +1021,11 @@
  
                  taVolumeCards.innerHTML = [
                      fastestTA ? buildVC('vc-fastest', '⚡', 'Fastest Response', fastestTA.name, 'avg TAT', 'text-emerald-400') : `<div class="ultra-glass p-4 rounded-2xl text-white/30 text-xs">No timing data</div>`,
-                     slowestTA ? buildVC('vc-slowest', '🐢', 'Slowest Response', slowestTA.name, 'avg TAT', 'text-red-400') : `<div class="ultra-glass p-4 rounded-2xl text-white/30 text-xs">No timing data</div>`,
                      buildVC('vc-least', '📉', 'Least Replied', leastReplied.name, 'queries', 'text-amber-400'),
                      buildVC('vc-most', '✅', 'Most On-Time', bestOnTime.name, 'on-time replies', 'text-blue-400'),
                  ].join('');
  
                  if (fastestTA) animateNumber('vc-fastest-val', fastestTA.avgTime, 1, '', 'h');
-                 if (slowestTA) animateNumber('vc-slowest-val', slowestTA.avgTime, 1, '', 'h');
                  animateNumber('vc-least-val', leastReplied.replies);
                  animateNumber('vc-most-val', bestOnTime.onTime);
              }
@@ -1055,7 +1050,6 @@
                      <td class="py-2.5 pl-2 text-center text-xs">${rankEmoji}</td>
                      <td class="py-2.5 font-medium text-white/95">${ta.name}</td>
                      <td class="py-2.5 text-center text-emerald-400 font-mono font-bold">${ta.replies}</td>
-                     <td class="py-2.5 text-center font-mono ${ta.pendingForTA > 0 ? 'text-amber-400 font-bold' : 'text-white/40'}">${ta.pendingForTA}</td>
                      <td class="py-2.5 text-center text-white/70 font-mono">${ta.avgTime.toFixed(1)}h</td>
                      <td class="py-2.5 text-center text-white/60 font-mono">${ta.onTime}</td>
                      <td class="py-2.5 text-center ${ta.delayed > 0 ? 'text-red-400 font-bold' : 'text-white/40'} font-mono">${ta.delayed}</td>
