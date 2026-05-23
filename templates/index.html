@@ -545,20 +545,20 @@
                         <div class="w-1 h-3.5 bg-emerald-500 rounded-full"></div>
                         <h4 class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Full TA Leaderboard
                         </h4>
-                        <span class="ml-auto text-[9px] text-white/30 font-light">Sorted by Combined Score &darr;</span>
+                        <span class="ml-auto text-[9px] text-white/30 font-light" id="leaderboard-sort-label">Sorted by Combined Score &darr;</span>
                     </div>
                     <div class="overflow-x-auto pr-1 custom-scrollbar">
                         <table class="w-full text-left text-[11px] border-collapse min-w-[680px]">
                             <thead>
-                                <tr class="text-white/40 border-b border-white/[0.08]">
+                                <tr class="text-white/40 border-b border-white/[0.08] select-none">
                                     <th class="py-2 pl-2 font-medium uppercase tracking-wider w-6">#</th>
-                                    <th class="py-2 font-medium uppercase tracking-wider">TA / SME Name</th>
-                                    <th class="py-2 font-medium uppercase tracking-wider text-center">Total Replied</th>
-                                    <th class="py-2 font-medium uppercase tracking-wider text-center">Avg Response</th>
-                                    <th class="py-2 font-medium uppercase tracking-wider text-center">On-Time</th>
-                                    <th class="py-2 font-medium uppercase tracking-wider text-center">Delayed</th>
-                                    <th class="py-2 font-medium uppercase tracking-wider text-center">SLA %</th>
-                                    <th class="py-2 font-medium uppercase tracking-wider text-center">Combined Score</th>
+                                    <th class="py-2 font-medium uppercase tracking-wider cursor-pointer hover:text-white transition-colors" onclick="changeSort('name')">TA / SME Name<span id="sort-arrow-name"></span></th>
+                                    <th class="py-2 font-medium uppercase tracking-wider text-center cursor-pointer hover:text-white transition-colors" onclick="changeSort('replies')">Total Replied<span id="sort-arrow-replies"></span></th>
+                                    <th class="py-2 font-medium uppercase tracking-wider text-center cursor-pointer hover:text-white transition-colors" onclick="changeSort('avgTime')">Avg Response<span id="sort-arrow-avgTime"></span></th>
+                                    <th class="py-2 font-medium uppercase tracking-wider text-center cursor-pointer hover:text-white transition-colors" onclick="changeSort('onTime')">On-Time<span id="sort-arrow-onTime"></span></th>
+                                    <th class="py-2 font-medium uppercase tracking-wider text-center cursor-pointer hover:text-white transition-colors" onclick="changeSort('delayed')">Delayed<span id="sort-arrow-delayed"></span></th>
+                                    <th class="py-2 font-medium uppercase tracking-wider text-center cursor-pointer hover:text-white transition-colors" onclick="changeSort('compliance')">SLA %<span id="sort-arrow-compliance"></span></th>
+                                    <th class="py-2 font-medium uppercase tracking-wider text-center cursor-pointer hover:text-white transition-colors" onclick="changeSort('combinedScore')">Combined Score<span id="sort-arrow-combinedScore"></span></th>
                                 </tr>
                             </thead>
                             <tbody id="ta-leaderboard-body" class="divide-y divide-white/[0.02]"></tbody>
@@ -897,6 +897,117 @@
             animateNumber('doughnut-center-percent', Math.round(slaCompliance), 0, '', '%');
         }
 
+        // Sorting globals & functions for TA Leaderboard
+        window.currentSortKey = 'delayed';
+        window.currentSortOrder = 'asc';
+        window.lastCalculatedTAs = [];
+
+        function changeSort(key) {
+            if (window.currentSortKey === key) {
+                window.currentSortOrder = window.currentSortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                window.currentSortKey = key;
+                window.currentSortOrder = (key === 'avgTime' || key === 'delayed') ? 'asc' : 'desc';
+            }
+            renderLeaderboardRows(window.lastCalculatedTAs);
+        }
+
+        function updateSortArrows() {
+            const keys = ['name', 'replies', 'avgTime', 'onTime', 'delayed', 'compliance', 'combinedScore'];
+            const labels = {
+                'name': 'Name',
+                'replies': 'Total Replied',
+                'avgTime': 'Avg Response Time',
+                'onTime': 'On-Time Responses',
+                'delayed': 'SLA Violations',
+                'compliance': 'SLA Compliance %',
+                'combinedScore': 'Combined Score'
+            };
+
+            const labelEl = document.getElementById('leaderboard-sort-label');
+            if (labelEl) {
+                const dirArrow = window.currentSortOrder === 'asc' ? '↑' : '↓';
+                labelEl.innerText = `Sorted by ${labels[window.currentSortKey]} ${dirArrow}`;
+            }
+
+            keys.forEach(k => {
+                const el = document.getElementById('sort-arrow-' + k);
+                if (!el) return;
+                if (k === window.currentSortKey) {
+                    el.innerHTML = window.currentSortOrder === 'asc' ? ' &uarr;' : ' &darr;';
+                    el.className = "text-emerald-400 font-bold ml-1";
+                } else {
+                    el.innerHTML = '';
+                    el.className = '';
+                }
+            });
+        }
+
+        function renderLeaderboardRows(tas) {
+            const taLeaderboard = document.getElementById('ta-leaderboard-body');
+            if (!taLeaderboard) return;
+            taLeaderboard.innerHTML = '';
+
+            const key = window.currentSortKey;
+            const isAsc = window.currentSortOrder === 'asc';
+
+            tas.sort((a, b) => {
+                let valA = a[key];
+                let valB = b[key];
+
+                if (typeof valA === 'string') {
+                    valA = valA.toLowerCase();
+                    valB = valB.toLowerCase();
+                }
+
+                if (valA < valB) return isAsc ? -1 : 1;
+                if (valA > valB) return isAsc ? 1 : -1;
+
+                // Tie breakers
+                if (key !== 'delayed') {
+                    if (a.delayed !== b.delayed) return a.delayed - b.delayed;
+                }
+                if (key !== 'avgTime') {
+                    if (a.avgTime !== b.avgTime) return a.avgTime - b.avgTime;
+                }
+                return b.replies - a.replies;
+            });
+
+            updateSortArrows();
+
+            tas.forEach((ta, idx) => {
+                const comp = Math.round(ta.compliance);
+                const score = Math.round(ta.combinedScore);
+                const badgeClass = comp >= 90
+                    ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                    : (comp >= 75 ? 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20' : 'text-red-400 bg-red-500/10 border-red-500/20');
+                
+                const scoreBadgeClass = score >= 90
+                    ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                    : (score >= 75 ? 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20' : 'text-red-400 bg-red-500/10 border-red-500/20');
+
+                const rankEmoji = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : (idx + 1);
+
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-white/[0.02] transition-colors border-b border-white/[0.02] text-left';
+                row.innerHTML = `
+                    <td class="py-2.5 pl-2 text-center text-xs">${rankEmoji}</td>
+                    <td class="py-2.5 font-medium text-white/95">${ta.name}</td>
+                    <td class="py-2.5 text-center text-emerald-400 font-mono font-bold">${ta.replies}</td>
+                    <td class="py-2.5 text-center text-white/70 font-mono">${ta.avgTime.toFixed(1)}h</td>
+                    <td class="py-2.5 text-center text-white/60 font-mono">${ta.onTime}</td>
+                    <td class="py-2.5 text-center ${ta.delayed > 0 ? 'text-red-400 font-bold' : 'text-white/40'} font-mono">${ta.delayed}</td>
+                    <td class="py-2.5 text-center">
+                        <span class="px-2 py-0.5 text-[9px] font-semibold border rounded-full inline-block ${badgeClass}">${comp}%</span>
+                    </td>
+                    <td class="py-2.5 text-center">
+                        <span class="px-2 py-0.5 text-[9px] font-bold border rounded-full inline-block ${scoreBadgeClass}">${score}/100</span>
+                    </td>
+                `;
+                taLeaderboard.appendChild(row);
+            });
+        }
+
         // 2 & 8. TA Performance & Workload Rendering
         function renderTAPerformance(queries) {
             const taLeaderboard = document.getElementById('ta-leaderboard-body');
@@ -960,8 +1071,6 @@
                  return { ...ta, avgTime, compliance, combinedScore, tier, tierClass, pendingForTA };
              });
  
-             tas.sort((a, b) => b.combinedScore - a.combinedScore || b.replies - a.replies);
- 
              if (tas.length === 0) {
                  if (taLeaderboard) taLeaderboard.innerHTML = `<tr><td colspan="8" class="py-4 text-center text-white/40 italic">No TA performance data available yet.</td></tr>`;
                  if (taWorkload) taWorkload.innerHTML = `<div class="py-4 text-center text-white/40 italic text-xs">No TA workload data.</div>`;
@@ -971,8 +1080,10 @@
  
              // ---- HIGHLIGHT CARDS ----
              if (taHighlightCards) {
-                 const topPerformer = tas[0];
-                 const worstPerformer = [...tas].sort((a, b) => a.combinedScore - b.combinedScore)[0];
+                 // Sort by score for highlighting
+                 const sortedForHL = [...tas].sort((a, b) => b.combinedScore - a.combinedScore || b.replies - a.replies);
+                 const topPerformer = sortedForHL[0];
+                 const worstPerformer = [...sortedForHL].reverse()[0];
                  const mostReplied = [...tas].sort((a, b) => b.replies - a.replies)[0];
                  const mostPending = [...tas].sort((a, b) => b.pendingForTA - a.pendingForTA)[0];
  
@@ -1030,38 +1141,13 @@
                  animateNumber('vc-most-val', bestOnTime.onTime);
              }
  
-             // ---- LEADERBOARD TABLE ----
-             tas.forEach((ta, idx) => {
-                 const comp = Math.round(ta.compliance);
-                 const score = Math.round(ta.combinedScore);
-                 const badgeClass = comp >= 90
-                     ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                     : (comp >= 75 ? 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20' : 'text-red-400 bg-red-500/10 border-red-500/20');
-                 
-                 const scoreBadgeClass = score >= 90
-                     ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                     : (score >= 75 ? 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20' : 'text-red-400 bg-red-500/10 border-red-500/20');
+             // Save globally for interactive sorting
+             window.lastCalculatedTAs = [...tas];
  
-                 const rankEmoji = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : (idx + 1);
- 
-                 const row = document.createElement('tr');
-                 row.className = 'hover:bg-white/[0.02] transition-colors border-b border-white/[0.02] text-left';
-                 row.innerHTML = `
-                     <td class="py-2.5 pl-2 text-center text-xs">${rankEmoji}</td>
-                     <td class="py-2.5 font-medium text-white/95">${ta.name}</td>
-                     <td class="py-2.5 text-center text-emerald-400 font-mono font-bold">${ta.replies}</td>
-                     <td class="py-2.5 text-center text-white/70 font-mono">${ta.avgTime.toFixed(1)}h</td>
-                     <td class="py-2.5 text-center text-white/60 font-mono">${ta.onTime}</td>
-                     <td class="py-2.5 text-center ${ta.delayed > 0 ? 'text-red-400 font-bold' : 'text-white/40'} font-mono">${ta.delayed}</td>
-                     <td class="py-2.5 text-center">
-                         <span class="px-2 py-0.5 text-[9px] font-semibold border rounded-full inline-block ${badgeClass}">${comp}%</span>
-                     </td>
-                     <td class="py-2.5 text-center">
-                         <span class="px-2 py-0.5 text-[9px] font-bold border rounded-full inline-block ${scoreBadgeClass}">${score}/100</span>
-                     </td>
-                 `;
-                 taLeaderboard.appendChild(row);
-             });
+             // Render rows using default sorting (delayed count ascending)
+             window.currentSortKey = 'delayed';
+             window.currentSortOrder = 'asc';
+             renderLeaderboardRows(window.lastCalculatedTAs);
  
              // ---- WORKLOAD BARS ----
              const maxReplies = Math.max(...tas.map(t => t.replies), 1);
