@@ -22,46 +22,260 @@
           background-size: 40px 40px;
       }
       
-      /* Premium glass card with subtle gradient */
+      /* Premium glass card with subtle gradient and dynamic BorderGlow */
       .ultra-glass {
-          background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(10, 10, 12, 0.4) 100%);
-          backdrop-filter: blur(40px);
-          -webkit-backdrop-filter: blur(40px);
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          border-top: 1px solid rgba(255, 255, 255, 0.12);
-          border-left: 1px solid rgba(255, 255, 255, 0.12);
+          background: var(--card-bg, rgba(10, 10, 12, 0.45));
+          border-radius: 24px;
+          --edge-proximity: 0;
+          --cursor-angle: 45deg;
+          --edge-sensitivity: 25;
+          --color-sensitivity: calc(var(--edge-sensitivity) + 20);
+          --border-radius: 24px;
+          --glow-padding: 30px;
+          --cone-spread: 25;
+          
+          /* Glow colors custom mapping (using brand red / cyan mesh) */
+          --glow-color: hsl(220deg 80% 80% / 100%);
+          --glow-color-60: hsl(220deg 80% 80% / 60%);
+          --glow-color-50: hsl(220deg 80% 80% / 50%);
+          --glow-color-40: hsl(220deg 80% 80% / 40%);
+          --glow-color-30: hsl(220deg 80% 80% / 30%);
+          --glow-color-20: hsl(220deg 80% 80% / 20%);
+          --glow-color-10: hsl(220deg 80% 80% / 10%);
+          
+          /* mesh gradient layers colors - using brand red, violet and cyan */
+          --gradient-one: radial-gradient(at 80% 55%, hsla(268, 100%, 76%, 0.8) 0px, transparent 50%);
+          --gradient-two: radial-gradient(at 69% 34%, hsla(349, 100%, 74%, 0.8) 0px, transparent 50%);
+          --gradient-three: radial-gradient(at 8% 6%, hsla(136, 100%, 78%, 0.8) 0px, transparent 50%);
+          --gradient-four: radial-gradient(at 41% 38%, hsla(192, 100%, 64%, 0.8) 0px, transparent 50%);
+          --gradient-five: radial-gradient(at 86% 85%, hsla(186, 100%, 74%, 0.8) 0px, transparent 50%);
+          --gradient-six: radial-gradient(at 82% 18%, hsla(52, 100%, 65%, 0.8) 0px, transparent 50%);
+          --gradient-seven: radial-gradient(at 51% 4%, hsla(12, 100%, 72%, 0.8) 0px, transparent 50%);
+          --gradient-base: linear-gradient(var(--card-bg) 0 100%);
+
+          position: relative;
+          isolation: isolate;
+          transform: translate3d(0, 0, 0.01px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          overflow: visible;
           box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.6);
+          transition: background-color 0.3s, border-color 0.3s;
+      }
+
+      .ultra-glass::before,
+      .ultra-glass::after,
+      .ultra-glass > .edge-light {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          transition: opacity 0.3s ease-out;
+          z-index: -1;
+      }
+
+      .ultra-glass:not(:hover)::before,
+      .ultra-glass:not(:hover)::after,
+      .ultra-glass:not(:hover) > .edge-light {
+          opacity: 0;
+          transition: opacity 0.5s ease-in-out;
+      }
+
+      /* colored mesh-gradient border */
+      .ultra-glass::before {
+          border: 1px solid transparent;
+          background:
+              linear-gradient(var(--card-bg) 0 100%) padding-box,
+              linear-gradient(rgba(255,255,255,0) 0% 100%) border-box,
+              var(--gradient-one) border-box,
+              var(--gradient-two) border-box,
+              var(--gradient-three) border-box,
+              var(--gradient-four) border-box,
+              var(--gradient-five) border-box,
+              var(--gradient-six) border-box,
+              var(--gradient-seven) border-box,
+              var(--gradient-base) border-box;
+
+          opacity: calc((var(--edge-proximity) - var(--color-sensitivity)) / (100 - var(--color-sensitivity)));
+
+          mask-image:
+              conic-gradient(
+                  from var(--cursor-angle) at center,
+                  black calc(var(--cone-spread) * 1%),
+                  transparent calc((var(--cone-spread) + 15) * 1%),
+                  transparent calc((100 - var(--cone-spread) - 15) * 1%),
+                  black calc((100 - var(--cone-spread)) * 1%)
+              );
+          -webkit-mask-image:
+              conic-gradient(
+                  from var(--cursor-angle) at center,
+                  black calc(var(--cone-spread) * 1%),
+                  transparent calc((var(--cone-spread) + 15) * 1%),
+                  transparent calc((100 - var(--cone-spread) - 15) * 1%),
+                  black calc((100 - var(--cone-spread)) * 1%)
+              );
+      }
+
+      /* colored mesh-gradient background fill near edges */
+      .ultra-glass::after {
+          border: 1px solid transparent;
+          background:
+              var(--gradient-one) padding-box,
+              var(--gradient-two) padding-box,
+              var(--gradient-three) padding-box,
+              var(--gradient-four) padding-box,
+              var(--gradient-five) padding-box,
+              var(--gradient-six) padding-box,
+              var(--gradient-seven) padding-box,
+              var(--gradient-base) padding-box;
+
+          mask-image:
+              linear-gradient(to bottom, black, black),
+              radial-gradient(ellipse at 50% 50%, black 40%, transparent 65%),
+              radial-gradient(ellipse at 66% 66%, black 5%, transparent 40%),
+              radial-gradient(ellipse at 33% 33%, black 5%, transparent 40%),
+              radial-gradient(ellipse at 66% 33%, black 5%, transparent 40%),
+              radial-gradient(ellipse at 33% 66%, black 5%, transparent 40%),
+              conic-gradient(from var(--cursor-angle) at center, transparent 5%, black 15%, black 85%, transparent 95%);
+          -webkit-mask-image:
+              linear-gradient(to bottom, black, black),
+              radial-gradient(ellipse at 50% 50%, black 40%, transparent 65%),
+              radial-gradient(ellipse at 66% 66%, black 5%, transparent 40%),
+              radial-gradient(ellipse at 33% 33%, black 5%, transparent 40%),
+              radial-gradient(ellipse at 66% 33%, black 5%, transparent 40%),
+              radial-gradient(ellipse at 33% 66%, black 5%, transparent 40%),
+              conic-gradient(from var(--cursor-angle) at center, transparent 5%, black 15%, black 85%, transparent 95%);
+
+          mask-composite: subtract, add, add, add, add, add;
+          -webkit-mask-composite: xor;
+          opacity: calc(0.12 * (var(--edge-proximity) - var(--color-sensitivity)) / (100 - var(--color-sensitivity)));
+          mix-blend-mode: soft-light;
+      }
+
+      /* outer glow layer */
+      .ultra-glass > .edge-light {
+          inset: calc(var(--glow-padding) * -1);
+          pointer-events: none;
+          z-index: 1;
+
+          mask-image:
+              conic-gradient(
+                  from var(--cursor-angle) at center, black 2.5%, transparent 10%, transparent 90%, black 97.5%
+              );
+          -webkit-mask-image:
+              conic-gradient(
+                  from var(--cursor-angle) at center, black 2.5%, transparent 10%, transparent 90%, black 97.5%
+              );
+
+          opacity: calc((var(--edge-proximity) - var(--edge-sensitivity)) / (100 - var(--edge-sensitivity)));
+          mix-blend-mode: plus-lighter;
+      }
+
+      .ultra-glass > .edge-light::before {
+          content: "";
+          position: absolute;
+          inset: var(--glow-padding);
+          border-radius: inherit;
+          box-shadow:
+              inset 0 0 0 1px var(--glow-color),
+              inset 0 0 1px 0 var(--glow-color-60),
+              inset 0 0 3px 0 var(--glow-color-50),
+              inset 0 0 6px 0 var(--glow-color-40),
+              inset 0 0 15px 0 var(--glow-color-30),
+              inset 0 0 25px 2px var(--glow-color-20),
+              inset 0 0 50px 2px var(--glow-color-10),
+              0 0 1px 0 var(--glow-color-60),
+              0 0 3px 0 var(--glow-color-50),
+              0 0 6px 0 var(--glow-color-40),
+              0 0 15px 0 var(--glow-color-30),
+              0 0 25px 2px var(--glow-color-20),
+              0 0 50px 2px var(--glow-color-10);
       }
       
-      /* Elegant shine */
-      .ultra-glass.card-shine::after {
-          background: linear-gradient(to right,
-              transparent 0%,
-              rgba(255, 255, 255, 0.02) 45%,
-              rgba(255, 255, 255, 0.08) 50%,
-              rgba(255, 255, 255, 0.02) 55%,
-              transparent 100%);
-          transition: transform 1.5s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-
-      @keyframes shimmer {
-          0% { background-position: -100% 0; }
-          100% { background-position: 200% 0; }
-      }
-
-      /* Sleek, low, non-white silvery shimmer for headers */
-      .silver-shimmer {
-          background: linear-gradient(135deg,
-              #94a3b8 0%,
-              #cbd5e1 35%,
-              #f1f5f9 50%,
-              #cbd5e1 65%,
-              #94a3b8 100%);
-          background-size: 300% 300%;
+      /* ShinyText - colorful shimmer effect */
+      .shiny-text {
+          background-image: linear-gradient(120deg, #38bdf8 0%, #818cf8 20%, #c084fc 40%, #f472b6 60%, #EE2C3C 80%, #38bdf8 100%);
+          background-size: 200% auto;
           -webkit-background-clip: text;
           background-clip: text;
           -webkit-text-fill-color: transparent;
-          animation: shimmer 30s ease-in-out infinite;
+          animation: shiny-sweep 4s linear infinite;
+          display: inline-block;
+      }
+      
+      @keyframes shiny-sweep {
+          0% {
+              background-position: 150% center;
+          }
+          100% {
+              background-position: -50% center;
+          }
+      }
+      
+      /* StarBorder CSS Effect */
+      .star-border-container {
+          display: inline-block;
+          position: relative;
+          border-radius: 12px;
+          overflow: hidden;
+          padding: 1px;
+          background: transparent;
+          transition: transform 0.2s;
+      }
+      
+      .border-gradient-bottom {
+          position: absolute;
+          width: 300%;
+          height: 100%;
+          opacity: 0.7;
+          bottom: -50%;
+          right: -250%;
+          border-radius: 50%;
+          background: radial-gradient(circle, #EE2C3C, transparent 20%);
+          animation: star-movement-bottom 6s linear infinite alternate;
+          z-index: 0;
+          pointer-events: none;
+      }
+
+      .border-gradient-top {
+          position: absolute;
+          opacity: 0.7;
+          width: 300%;
+          height: 100%;
+          top: -50%;
+          left: -250%;
+          border-radius: 50%;
+          background: radial-gradient(circle, #EE2C3C, transparent 20%);
+          animation: star-movement-top 6s linear infinite alternate;
+          z-index: 0;
+          pointer-events: none;
+      }
+
+      .star-border-inner {
+          position: relative;
+          background: #050505;
+          z-index: 1;
+      }
+
+      @keyframes star-movement-bottom {
+          0% {
+              transform: translate(0%, 0%);
+              opacity: 0.8;
+          }
+          100% {
+              transform: translate(-100%, 0%);
+              opacity: 0.2;
+          }
+      }
+
+      @keyframes star-movement-top {
+          0% {
+              transform: translate(0%, 0%);
+              opacity: 0.8;
+          }
+          100% {
+              transform: translate(100%, 0%);
+              opacity: 0.2;
+          }
       }
 
       /* Focus transitions for input */
@@ -118,27 +332,27 @@
                     <span class="text-[10px] font-semibold text-[#4ade80] uppercase tracking-widest" style="letter-spacing: 0.15em;">System Live</span>
                 </div>
                 
-                <h1 class="text-3xl lg:text-4xl font-extrabold mb-5 tracking-tight silver-shimmer leading-snug drop-shadow-sm">Edgewood Business <br/>Discussion Tracker</h1>
+                <h1 class="text-3xl lg:text-4xl font-extrabold mb-5 tracking-tight shiny-text leading-snug drop-shadow-sm">Edgewood Business <br/>Discussion Tracker</h1>
                 
                 <p class="text-[rgba(255,255,255,0.6)] text-sm mb-8 leading-relaxed font-light">
                     Automate your Business discussion forum audits. Instead of manually searching Canvas to find out which learner has raised a query and whether a TA has replied, this tool pulls all the activity instantly.
                 </p>
                 
-                <h3 class="text-[11px] font-bold mb-5 pb-3 border-b border-[rgba(255,255,255,0.08)] silver-shimmer uppercase tracking-widest w-full">How it works</h3>
+                <h3 class="text-[11px] font-bold mb-5 pb-3 border-b border-[rgba(255,255,255,0.08)] shiny-text uppercase tracking-widest w-full">How it works</h3>
                 
                 <!-- Left-aligned list items -->
                 <ul class="space-y-5 text-[rgba(255,255,255,0.6)] text-xs font-light w-full">
                     <li class="flex items-start gap-3.5 group">
                         <div class="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.15)] group-hover:bg-[rgba(238,44,60,0.1)] group-hover:border-[#EE2C3C] text-white/90 w-7 h-7 rounded-full flex items-center justify-center font-medium shadow-sm flex-shrink-0 mt-0.5 transition-all">1</div>
-                        <div class="pt-1"><strong class="silver-shimmer font-medium text-[13px]">Fetch Queries:</strong> Connects to Canvas and pulls all posts.</div>
+                        <div class="pt-1"><strong class="shiny-text font-medium text-[13px]">Fetch Queries:</strong> Connects to Canvas and pulls all posts.</div>
                     </li>
                     <li class="flex items-start gap-3.5 group">
                         <div class="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.15)] group-hover:bg-[rgba(238,44,60,0.1)] group-hover:border-[#EE2C3C] text-white/90 w-7 h-7 rounded-full flex items-center justify-center font-medium shadow-sm flex-shrink-0 mt-0.5 transition-all">2</div>
-                        <div class="pt-1"><strong class="silver-shimmer font-medium text-[13px]">Track Responses:</strong> Identifies TA replies and calculates durations.</div>
+                        <div class="pt-1"><strong class="shiny-text font-medium text-[13px]">Track Responses:</strong> Identifies TA replies and calculates durations.</div>
                     </li>
                     <li class="flex items-start gap-3.5 group">
                         <div class="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.15)] group-hover:bg-[rgba(238,44,60,0.1)] group-hover:border-[#EE2C3C] text-white/90 w-7 h-7 rounded-full flex items-center justify-center font-medium shadow-sm flex-shrink-0 mt-0.5 transition-all">3</div>
-                        <div class="pt-1"><strong class="silver-shimmer font-medium text-[13px]">Analyze SLAs:</strong> Checks if the reply was within the time frame.</div>
+                        <div class="pt-1"><strong class="shiny-text font-medium text-[13px]">Analyze SLAs:</strong> Checks if the reply was within the time frame.</div>
                     </li>
                 </ul>
             </div>
@@ -148,13 +362,13 @@
 
             <!-- Right Side: Input & Form -->
             <div class="lg:w-1/2 flex flex-col justify-center relative z-10 lg:pl-4">
-                <h2 class="text-2xl lg:text-3xl font-bold mb-3 silver-shimmer tracking-tight">Generate Report</h2>
+                <h2 class="text-2xl lg:text-3xl font-bold mb-3 shiny-text tracking-tight">Generate Report</h2>
                 <p class="text-[rgba(255,255,255,0.6)] mb-8 text-sm font-light">Enter the course codes below to generate your comprehensive audit report in Excel.</p>
                 
                 <form id="tracker-form" class="space-y-6 w-full">
                     <div class="w-full relative">
                         <label class="block text-[10px] font-semibold text-white/60 mb-2.5 uppercase tracking-widest text-left" for="course_codes">
-                            Course Code(s)
+                             Course Code(s)
                         </label>
                         <input 
                             type="text" 
@@ -173,10 +387,14 @@
                         </div>
                     </div>
                     
-                    <button type="submit" id="submit-btn" class="w-full py-3.5 bg-white/10 hover:bg-white/15 text-white text-sm font-semibold rounded-xl transition-all flex justify-center items-center gap-2.5 border border-[rgba(255,255,255,0.2)] shadow-lg backdrop-blur-md group hover:border-[rgba(255,255,255,0.3)] hover:shadow-xl">
-                        <span id="btn-text">Download Audit Report</span>
-                        <svg id="btn-icon" class="w-4 h-4 opacity-80 transform group-hover:translate-y-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                    </button>
+                    <div class="star-border-container w-full">
+                        <div class="border-gradient-bottom"></div>
+                        <div class="border-gradient-top"></div>
+                        <button type="submit" id="submit-btn" class="star-border-inner w-full py-3.5 bg-white/10 hover:bg-white/15 text-white text-sm font-semibold rounded-xl transition-all flex justify-center items-center gap-2.5 border border-[rgba(255,255,255,0.2)] shadow-lg backdrop-blur-md group hover:border-[rgba(255,255,255,0.3)] hover:shadow-xl">
+                            <span id="btn-text">Download Audit Report</span>
+                            <svg id="btn-icon" class="w-4 h-4 opacity-80 transform group-hover:translate-y-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        </button>
+                    </div>
 
                     <!-- Live Progress Terminal (Pre-allocated height but invisible to prevent jumping) -->
                     <div id="progress-container" class="mt-4 w-full transform transition-all duration-500 opacity-0 translate-y-4 pointer-events-none h-12">
@@ -202,7 +420,7 @@
                 <!-- Title + Sync Row -->
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pl-1 pr-1">
                     <div>
-                        <h2 class="text-xl lg:text-2xl font-extrabold silver-shimmer tracking-tight">Executive SLA Dashboard</h2>
+                        <h2 class="text-xl lg:text-2xl font-extrabold shiny-text tracking-tight">Executive SLA Dashboard</h2>
                         <p class="text-white/40 text-[10px] font-light mt-0.5">Real-time platform support intelligence &mdash; auto-synced every 10 seconds.</p>
                     </div>
                     <div class="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/[0.08] text-white text-xs font-medium rounded-xl flex-shrink-0">
@@ -735,6 +953,7 @@
             renderLearnerRisk(filtered);
             renderEscalationTracker(filtered);
             renderTrendsSection(filtered);
+            initCardGlowEffects();
         }
 
         // ============================================================
@@ -745,24 +964,24 @@
         function renderExecutiveSummary(queries) {
             // Courses count
             const uniqueCourses = new Set(queries.map(q => q.course_name).filter(Boolean));
-            document.getElementById('stat-courses').innerText = uniqueCourses.size;
+            animateNumberValue('stat-courses', uniqueCourses.size);
 
             // Valid discussion queries
             const totalDiscussions = queries.filter(q => q.learner_name && q.learner_name !== "(No student posts yet)").length;
-            document.getElementById('stat-discussions').innerText = totalDiscussions;
+            animateNumberValue('stat-discussions', totalDiscussions);
 
             // Replied queries
             const repliedQueries = queries.filter(q => q.replied === "Yes");
-            document.getElementById('stat-replied').innerText = repliedQueries.length;
+            animateNumberValue('stat-replied', repliedQueries.length);
 
             // Avg TAT
             const durations = repliedQueries.map(q => q.duration_hours).filter(d => typeof d === 'number' && !isNaN(d));
             const avgTAT = durations.length > 0 ? (durations.reduce((a, b) => a + b, 0) / durations.length) : 0.0;
-            document.getElementById('stat-tat').innerText = avgTAT.toFixed(1);
+            animateNumberValue('stat-tat', avgTAT);
 
             // Pending = learner queries not yet replied
             const pendingCount = queries.filter(q => q.replied === "No" && q.learner_name && q.learner_name !== "(No student posts yet)").length;
-            document.getElementById('stat-pending').innerText = pendingCount;
+            animateNumberValue('stat-pending', pendingCount);
 
             // SLA compliance (includes unanswered breached queries > 24h as Delayed)
             const onTimeCount = repliedQueries.filter(q => q.sla_status === "On Time Response").length;
@@ -781,8 +1000,7 @@
 
             const totalSLA = onTimeCount + repliedDelayed + unansweredDelayed;
             const slaCompliance = totalSLA > 0 ? ((onTimeCount / totalSLA) * 100) : 100;
-            document.getElementById('stat-compliance-percent').innerText = Math.round(slaCompliance);
-            document.getElementById('doughnut-center-percent').innerText = Math.round(slaCompliance) + "%";
+            animateNumberValue('stat-compliance-percent', Math.round(slaCompliance));
         }
 
         // 2 & 8. TA Performance & Workload Rendering
@@ -796,47 +1014,82 @@
             if (taHighlightCards) taHighlightCards.innerHTML = '';
             if (taVolumeCards) taVolumeCards.innerHTML = '';
 
-            // Build TA map from replied queries
+            // Build TA map from all queries (replied and pending)
             const taMap = {};
             queries.forEach(q => {
                 const taName = q.replied_by_name || q.first_responder;
-                if (!taName || taName === "N/A" || q.replied !== "Yes") return;
-                if (!taMap[taName]) {
-                    taMap[taName] = { name: taName, replies: 0, onTime: 0, delayed: 0, durations: [], courses: new Set() };
-                }
-                taMap[taName].replies++;
-                taMap[taName].courses.add(q.course_name);
-                if (q.sla_status === "On Time Response") taMap[taName].onTime++;
-                else if (q.sla_status === "Delayed Response") taMap[taName].delayed++;
-                if (typeof q.duration_hours === 'number' && !isNaN(q.duration_hours)) taMap[taName].durations.push(q.duration_hours);
-            });
-
-            // Count pending per TA (unanswered queries where TA is the responder reference)
-            const taPendingMap = {};
-            queries.forEach(q => {
-                const taName = q.replied_by_name || q.first_responder;
                 if (!taName || taName === "N/A") return;
-                if (q.replied === "No" && q.learner_name && q.learner_name !== "(No student posts yet)") {
-                    taPendingMap[taName] = (taPendingMap[taName] || 0) + 1;
+                
+                if (!taMap[taName]) {
+                    taMap[taName] = { 
+                        name: taName, 
+                        replies: 0, 
+                        onTime: 0, 
+                        delayed: 0, 
+                        pending: 0, 
+                        pendingBreached: 0, 
+                        durations: [], 
+                        courses: new Set() 
+                    };
+                }
+                
+                if (q.replied === "Yes") {
+                    taMap[taName].replies++;
+                    taMap[taName].courses.add(q.course_name);
+                    if (q.sla_status === "On Time Response") taMap[taName].onTime++;
+                    else if (q.sla_status === "Delayed Response") taMap[taName].delayed++;
+                    if (typeof q.duration_hours === 'number' && !isNaN(q.duration_hours)) taMap[taName].durations.push(q.duration_hours);
+                } else if (q.replied === "No" && q.learner_name && q.learner_name !== "(No student posts yet)") {
+                    taMap[taName].pending++;
+                    taMap[taName].courses.add(q.course_name);
+                    if (q.created_dt_iso) {
+                        const elapsedMs = Date.now() - Date.parse(q.created_dt_iso);
+                        const elapsedHrs = elapsedMs / (1000 * 60 * 60);
+                        if (elapsedHrs > 24) {
+                            taMap[taName].pendingBreached++;
+                        }
+                    }
                 }
             });
 
             // Enrich TA list
             const tas = Object.values(taMap).map(ta => {
                 const avgTime = ta.durations.length > 0 ? (ta.durations.reduce((a, b) => a + b, 0) / ta.durations.length) : 0.0;
-                const totalReplied = ta.onTime + ta.delayed;
-                const compliance = totalReplied > 0 ? ((ta.onTime / totalReplied) * 100) : 100.0;
-                const pendingForTA = taPendingMap[ta.name] || 0;
+                const totalSlaQueries = ta.onTime + ta.delayed + ta.pendingBreached;
+                const compliance = totalSlaQueries > 0 ? ((ta.onTime / totalSlaQueries) * 100) : 100.0;
+                const pendingForTA = ta.pending;
+                const pendingBreached = ta.pendingBreached;
                 let tier = "N/A", tierClass = "text-white/40";
-                if (totalReplied > 0) {
+                
+                if (totalSlaQueries > 0) {
                     if (compliance >= 90) { tier = "🏆 Elite"; tierClass = "text-emerald-400 font-bold"; }
                     else if (compliance >= 75) { tier = "🟢 Meets SLA"; tierClass = "text-green-300 font-medium"; }
                     else { tier = "⚠️ Needs Support"; tierClass = "text-[#EE2C3C] font-bold"; }
                 }
-                return { ...ta, avgTime, compliance, tier, tierClass, pendingForTA };
+                return { ...ta, avgTime, compliance, tier, tierClass, pendingForTA, pendingBreached };
             });
 
-            tas.sort((a, b) => b.compliance - a.compliance || b.replies - a.replies);
+            // Sort by compound performance criteria:
+            // 1. Compliance rate descending (higher met SLA is better)
+            // 2. Average response time ascending (only for those who have replies, others go to bottom)
+            // 3. Combined SLA violations ascending (delayed replies + pending breached queries)
+            // 4. Total replies volume descending (higher volume is better)
+            tas.sort((a, b) => {
+                if (b.compliance !== a.compliance) {
+                    return b.compliance - a.compliance;
+                }
+                const aTime = a.replies > 0 ? a.avgTime : Infinity;
+                const bTime = b.replies > 0 ? b.avgTime : Infinity;
+                if (aTime !== bTime) {
+                    return aTime - bTime;
+                }
+                const aViolations = a.delayed + a.pendingBreached;
+                const bViolations = b.delayed + b.pendingBreached;
+                if (aViolations !== bViolations) {
+                    return aViolations - bViolations;
+                }
+                return b.replies - a.replies;
+            });
 
             if (tas.length === 0) {
                 if (taLeaderboard) taLeaderboard.innerHTML = `<tr><td colspan="9" class="py-4 text-center text-white/40 italic">No TA performance data available yet.</td></tr>`;
@@ -1669,6 +1922,104 @@
                 setTimeout(() => { progContainer.classList.add('hidden'); }, 500);
             }
         });
+
+        function animateNumberValue(id, end, duration = 800) {
+            const obj = document.getElementById(id);
+            if (!obj) return;
+            const isFloat = id === 'stat-tat';
+            const currentText = obj.innerText.replace('%', '').trim();
+            const startVal = (currentText === '--' || !currentText) ? 0 : parseFloat(currentText);
+            const start = isNaN(startVal) ? 0 : startVal;
+            const endVal = parseFloat(end);
+            const endValue = isNaN(endVal) ? 0 : endVal;
+            
+            if (start === endValue) {
+                obj.innerText = isFloat ? endValue.toFixed(1) : Math.round(endValue);
+                if (id === 'stat-compliance-percent') {
+                    const centerPct = document.getElementById('doughnut-center-percent');
+                    if (centerPct) centerPct.innerText = Math.round(endValue) + "%";
+                }
+                return;
+            }
+            
+            const range = endValue - start;
+            const startTime = performance.now();
+            
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const easeProgress = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+                const val = start + range * easeProgress;
+                
+                if (isFloat) {
+                    obj.innerText = val.toFixed(1);
+                } else {
+                    obj.innerText = Math.round(val);
+                }
+                
+                if (id === 'stat-compliance-percent') {
+                    const centerPct = document.getElementById('doughnut-center-percent');
+                    if (centerPct) centerPct.innerText = Math.round(val) + "%";
+                }
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    obj.innerText = isFloat ? endValue.toFixed(1) : Math.round(endValue);
+                    if (id === 'stat-compliance-percent') {
+                        const centerPct = document.getElementById('doughnut-center-percent');
+                        if (centerPct) centerPct.innerText = Math.round(endValue) + "%";
+                    }
+                }
+            }
+            
+            requestAnimationFrame(update);
+        }
+
+        function initCardGlowEffects() {
+            const cards = document.querySelectorAll('.ultra-glass');
+            cards.forEach(card => {
+                if (card.dataset.glowInitialized === "true") return;
+                card.dataset.glowInitialized = "true";
+                
+                if (!card.querySelector('.edge-light')) {
+                    const edgeLight = document.createElement('span');
+                    edgeLight.className = 'edge-light';
+                    card.appendChild(edgeLight);
+                }
+                
+                card.addEventListener('pointermove', (e) => {
+                    const rect = card.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    const width = rect.width;
+                    const height = rect.height;
+                    const cx = width / 2;
+                    const cy = height / 2;
+                    const dx = x - cx;
+                    const dy = y - cy;
+                    
+                    let kx = Infinity, ky = Infinity;
+                    if (dx !== 0) kx = cx / Math.abs(dx);
+                    if (dy !== 0) ky = cy / Math.abs(dy);
+                    const edge = Math.min(Math.max(1 / Math.min(kx, ky), 0), 1);
+                    
+                    let degrees = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+                    if (degrees < 0) degrees += 360;
+                    
+                    card.style.setProperty('--edge-proximity', (edge * 100).toFixed(3));
+                    card.style.setProperty('--cursor-angle', `${degrees.toFixed(3)}deg`);
+                });
+                
+                card.addEventListener('pointerleave', () => {
+                    card.style.setProperty('--edge-proximity', '0');
+                });
+            });
+        }
+
+        // Initialize glows on initial DOM load
+        document.addEventListener('DOMContentLoaded', initCardGlowEffects);
     </script>
 </body>
 </html>
