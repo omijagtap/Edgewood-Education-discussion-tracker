@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en" class="dark">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,314 +8,112 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
     <style>
-      body { 
-          font-family: 'Inter', system-ui, -apple-system, sans-serif; 
-      }
-      
-      /* Extremely subtle technical grid */
-      .grid-bg {
-          background-color: #050505;
-          background-image:
-            linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px) !important;
-          background-size: 40px 40px;
-      }
-      
-      /* Premium glass card with subtle gradient and dynamic BorderGlow */
-      .ultra-glass {
-          background: var(--card-bg, rgba(10, 10, 12, 0.45));
-          border-radius: 24px;
-          --edge-proximity: 0;
-          --cursor-angle: 45deg;
-          --edge-sensitivity: 25;
-          --color-sensitivity: calc(var(--edge-sensitivity) + 20);
-          --border-radius: 24px;
-          --glow-padding: 30px;
-          --cone-spread: 25;
-          
-          /* Glow colors custom mapping (using brand red / cyan mesh) */
-          --glow-color: hsl(220deg 80% 80% / 100%);
-          --glow-color-60: hsl(220deg 80% 80% / 60%);
-          --glow-color-50: hsl(220deg 80% 80% / 50%);
-          --glow-color-40: hsl(220deg 80% 80% / 40%);
-          --glow-color-30: hsl(220deg 80% 80% / 30%);
-          --glow-color-20: hsl(220deg 80% 80% / 20%);
-          --glow-color-10: hsl(220deg 80% 80% / 10%);
-          
-          /* mesh gradient layers colors - using brand red, violet and cyan */
-          --gradient-one: radial-gradient(at 80% 55%, hsla(268, 100%, 76%, 0.8) 0px, transparent 50%);
-          --gradient-two: radial-gradient(at 69% 34%, hsla(349, 100%, 74%, 0.8) 0px, transparent 50%);
-          --gradient-three: radial-gradient(at 8% 6%, hsla(136, 100%, 78%, 0.8) 0px, transparent 50%);
-          --gradient-four: radial-gradient(at 41% 38%, hsla(192, 100%, 64%, 0.8) 0px, transparent 50%);
-          --gradient-five: radial-gradient(at 86% 85%, hsla(186, 100%, 74%, 0.8) 0px, transparent 50%);
-          --gradient-six: radial-gradient(at 82% 18%, hsla(52, 100%, 65%, 0.8) 0px, transparent 50%);
-          --gradient-seven: radial-gradient(at 51% 4%, hsla(12, 100%, 72%, 0.8) 0px, transparent 50%);
-          --gradient-base: linear-gradient(var(--card-bg) 0 100%);
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
 
-          position: relative;
-          isolation: isolate;
-          transform: translate3d(0, 0, 0.01px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          overflow: visible;
-          box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.6);
-          transition: background-color 0.3s, border-color 0.3s;
-      }
+        /* Extremely subtle technical grid */
+        .grid-bg {
+            background-color: #050505;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px) !important;
+            background-size: 40px 40px;
+        }
 
-      .ultra-glass::before,
-      .ultra-glass::after,
-      .ultra-glass > .edge-light {
-          content: "";
-          position: absolute;
-          inset: 0;
-          border-radius: inherit;
-          transition: opacity 0.3s ease-out;
-          z-index: -1;
-      }
+        /* Premium glass card with subtle gradient */
+        .ultra-glass {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(10, 10, 12, 0.4) 100%);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            border-left: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.6);
+        }
 
-      .ultra-glass:not(:hover)::before,
-      .ultra-glass:not(:hover)::after,
-      .ultra-glass:not(:hover) > .edge-light {
-          opacity: 0;
-          transition: opacity 0.5s ease-in-out;
-      }
+        /* Elegant shine */
+        .ultra-glass.card-shine::after {
+            background: linear-gradient(to right,
+                    transparent 0%,
+                    rgba(255, 255, 255, 0.02) 45%,
+                    rgba(255, 255, 255, 0.08) 50%,
+                    rgba(255, 255, 255, 0.02) 55%,
+                    transparent 100%);
+            transition: transform 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
 
-      /* colored mesh-gradient border */
-      .ultra-glass::before {
-          border: 1px solid transparent;
-          background:
-              linear-gradient(var(--card-bg) 0 100%) padding-box,
-              linear-gradient(rgba(255,255,255,0) 0% 100%) border-box,
-              var(--gradient-one) border-box,
-              var(--gradient-two) border-box,
-              var(--gradient-three) border-box,
-              var(--gradient-four) border-box,
-              var(--gradient-five) border-box,
-              var(--gradient-six) border-box,
-              var(--gradient-seven) border-box,
-              var(--gradient-base) border-box;
+        @keyframes shimmer {
+            0% {
+                background-position: -100% 0;
+            }
 
-          opacity: calc((var(--edge-proximity) - var(--color-sensitivity)) / (100 - var(--color-sensitivity)));
+            100% {
+                background-position: 200% 0;
+            }
+        }
 
-          mask-image:
-              conic-gradient(
-                  from var(--cursor-angle) at center,
-                  black calc(var(--cone-spread) * 1%),
-                  transparent calc((var(--cone-spread) + 15) * 1%),
-                  transparent calc((100 - var(--cone-spread) - 15) * 1%),
-                  black calc((100 - var(--cone-spread)) * 1%)
-              );
-          -webkit-mask-image:
-              conic-gradient(
-                  from var(--cursor-angle) at center,
-                  black calc(var(--cone-spread) * 1%),
-                  transparent calc((var(--cone-spread) + 15) * 1%),
-                  transparent calc((100 - var(--cone-spread) - 15) * 1%),
-                  black calc((100 - var(--cone-spread)) * 1%)
-              );
-      }
+        /* Sleek, low, non-white silvery shimmer for headers */
+        .silver-shimmer {
+            background: linear-gradient(135deg,
+                    #94a3b8 0%,
+                    #cbd5e1 35%,
+                    #f1f5f9 50%,
+                    #cbd5e1 65%,
+                    #94a3b8 100%);
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 30s ease-in-out infinite;
+        }
 
-      /* colored mesh-gradient background fill near edges */
-      .ultra-glass::after {
-          border: 1px solid transparent;
-          background:
-              var(--gradient-one) padding-box,
-              var(--gradient-two) padding-box,
-              var(--gradient-three) padding-box,
-              var(--gradient-four) padding-box,
-              var(--gradient-five) padding-box,
-              var(--gradient-six) padding-box,
-              var(--gradient-seven) padding-box,
-              var(--gradient-base) padding-box;
+        /* Focus transitions for input */
+        .input-glow:focus {
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1), 0 0 20px rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.25);
+            background-color: rgba(255, 255, 255, 0.05);
+        }
 
-          mask-image:
-              linear-gradient(to bottom, black, black),
-              radial-gradient(ellipse at 50% 50%, black 40%, transparent 65%),
-              radial-gradient(ellipse at 66% 66%, black 5%, transparent 40%),
-              radial-gradient(ellipse at 33% 33%, black 5%, transparent 40%),
-              radial-gradient(ellipse at 66% 33%, black 5%, transparent 40%),
-              radial-gradient(ellipse at 33% 66%, black 5%, transparent 40%),
-              conic-gradient(from var(--cursor-angle) at center, transparent 5%, black 15%, black 85%, transparent 95%);
-          -webkit-mask-image:
-              linear-gradient(to bottom, black, black),
-              radial-gradient(ellipse at 50% 50%, black 40%, transparent 65%),
-              radial-gradient(ellipse at 66% 66%, black 5%, transparent 40%),
-              radial-gradient(ellipse at 33% 33%, black 5%, transparent 40%),
-              radial-gradient(ellipse at 66% 33%, black 5%, transparent 40%),
-              radial-gradient(ellipse at 33% 66%, black 5%, transparent 40%),
-              conic-gradient(from var(--cursor-angle) at center, transparent 5%, black 15%, black 85%, transparent 95%);
+        #learner-search-input:focus {
+            box-shadow: none !important;
+            outline: none !important;
+        }
 
-          mask-composite: subtract, add, add, add, add, add;
-          -webkit-mask-composite: xor;
-          opacity: calc(0.12 * (var(--edge-proximity) - var(--color-sensitivity)) / (100 - var(--color-sensitivity)));
-          mix-blend-mode: soft-light;
-      }
-
-      /* outer glow layer */
-      .ultra-glass > .edge-light {
-          inset: calc(var(--glow-padding) * -1);
-          pointer-events: none;
-          z-index: 1;
-
-          mask-image:
-              conic-gradient(
-                  from var(--cursor-angle) at center, black 2.5%, transparent 10%, transparent 90%, black 97.5%
-              );
-          -webkit-mask-image:
-              conic-gradient(
-                  from var(--cursor-angle) at center, black 2.5%, transparent 10%, transparent 90%, black 97.5%
-              );
-
-          opacity: calc((var(--edge-proximity) - var(--edge-sensitivity)) / (100 - var(--edge-sensitivity)));
-          mix-blend-mode: plus-lighter;
-      }
-
-      .ultra-glass > .edge-light::before {
-          content: "";
-          position: absolute;
-          inset: var(--glow-padding);
-          border-radius: inherit;
-          box-shadow:
-              inset 0 0 0 1px var(--glow-color),
-              inset 0 0 1px 0 var(--glow-color-60),
-              inset 0 0 3px 0 var(--glow-color-50),
-              inset 0 0 6px 0 var(--glow-color-40),
-              inset 0 0 15px 0 var(--glow-color-30),
-              inset 0 0 25px 2px var(--glow-color-20),
-              inset 0 0 50px 2px var(--glow-color-10),
-              0 0 1px 0 var(--glow-color-60),
-              0 0 3px 0 var(--glow-color-50),
-              0 0 6px 0 var(--glow-color-40),
-              0 0 15px 0 var(--glow-color-30),
-              0 0 25px 2px var(--glow-color-20),
-              0 0 50px 2px var(--glow-color-10);
-      }
-      
-      /* ShinyText - colorful shimmer effect */
-      .shiny-text {
-          background-image: linear-gradient(120deg, #38bdf8 0%, #818cf8 20%, #c084fc 40%, #f472b6 60%, #EE2C3C 80%, #38bdf8 100%);
-          background-size: 200% auto;
-          -webkit-background-clip: text;
-          background-clip: text;
-          -webkit-text-fill-color: transparent;
-          animation: shiny-sweep 4s linear infinite;
-          display: inline-block;
-      }
-      
-      @keyframes shiny-sweep {
-          0% {
-              background-position: 150% center;
-          }
-          100% {
-              background-position: -50% center;
-          }
-      }
-      
-      /* StarBorder CSS Effect */
-      .star-border-container {
-          display: inline-block;
-          position: relative;
-          border-radius: 12px;
-          overflow: hidden;
-          padding: 1px;
-          background: transparent;
-          transition: transform 0.2s;
-      }
-      
-      .border-gradient-bottom {
-          position: absolute;
-          width: 300%;
-          height: 100%;
-          opacity: 0.7;
-          bottom: -50%;
-          right: -250%;
-          border-radius: 50%;
-          background: radial-gradient(circle, #EE2C3C, transparent 20%);
-          animation: star-movement-bottom 6s linear infinite alternate;
-          z-index: 0;
-          pointer-events: none;
-      }
-
-      .border-gradient-top {
-          position: absolute;
-          opacity: 0.7;
-          width: 300%;
-          height: 100%;
-          top: -50%;
-          left: -250%;
-          border-radius: 50%;
-          background: radial-gradient(circle, #EE2C3C, transparent 20%);
-          animation: star-movement-top 6s linear infinite alternate;
-          z-index: 0;
-          pointer-events: none;
-      }
-
-      .star-border-inner {
-          position: relative;
-          background: #050505;
-          z-index: 1;
-      }
-
-      @keyframes star-movement-bottom {
-          0% {
-              transform: translate(0%, 0%);
-              opacity: 0.8;
-          }
-          100% {
-              transform: translate(-100%, 0%);
-              opacity: 0.2;
-          }
-      }
-
-      @keyframes star-movement-top {
-          0% {
-              transform: translate(0%, 0%);
-              opacity: 0.8;
-          }
-          100% {
-              transform: translate(100%, 0%);
-              opacity: 0.2;
-          }
-      }
-
-      /* Focus transitions for input */
-      .input-glow:focus {
-          box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1), 0 0 20px rgba(255, 255, 255, 0.05);
-          border-color: rgba(255, 255, 255, 0.25);
-          background-color: rgba(255, 255, 255, 0.05);
-      }
-
-      #learner-search-input:focus {
-          box-shadow: none !important;
-          outline: none !important;
-      }
-      
-      .font-mono {
-          font-family: 'JetBrains Mono', monospace;
-      }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
     </style>
 </head>
+
 <body class="grid-bg min-h-screen relative overflow-y-auto flex flex-col justify-center items-center">
-    
+
     <!-- Ultra subtle cool blue ambient glow (not red) -->
-    <div class="ambient-glow" style="top: -10%; right: -10%; width: 500px; height: 500px; opacity: 0.04; background: #3b82f6;"></div>
-    
+    <div class="ambient-glow"
+        style="top: -10%; right: -10%; width: 500px; height: 500px; opacity: 0.04; background: #3b82f6;"></div>
+
     <div class="relative z-10 w-full px-4 py-8 max-w-screen-2xl mx-auto">
-        
+
         <!-- Header / Logo & Navigation -->
         <div class="flex flex-row justify-between items-center w-full mb-8 pl-2 pr-2">
             <div class="flex items-center drop-shadow-md">
                 <span class="text-2xl font-medium text-[#EE2C3C] tracking-tight">upGrad</span>
                 <span class="text-xl font-thin text-white/60 tracking-wide ml-2">Automation</span>
             </div>
-            
+
             <!-- Tab Switcher Navigation (matching user image layout) -->
-            <div class="flex bg-[rgba(0,0,0,0.4)] border border-[rgba(255,255,255,0.08)] rounded-full p-1 shadow-inner backdrop-blur-md">
-                <button id="nav-audit" class="px-5 py-2 text-xs font-semibold text-white bg-[rgba(255,255,255,0.08)] border border-[rgba(255,255,255,0.05)] rounded-full transition-all shadow-sm focus:outline-none">
+            <div
+                class="flex bg-[rgba(0,0,0,0.4)] border border-[rgba(255,255,255,0.08)] rounded-full p-1 shadow-inner backdrop-blur-md">
+                <button id="nav-audit"
+                    class="px-5 py-2 text-xs font-semibold text-white bg-[rgba(255,255,255,0.08)] border border-[rgba(255,255,255,0.05)] rounded-full transition-all shadow-sm focus:outline-none">
                     Audit Canvas
                 </button>
-                <button id="nav-dashboard" class="px-5 py-2 text-xs font-semibold text-white/50 hover:text-white rounded-full transition-all focus:outline-none ml-1">
+                <button id="nav-dashboard"
+                    class="px-5 py-2 text-xs font-semibold text-white/50 hover:text-white rounded-full transition-all focus:outline-none ml-1">
                     Dashboard
                 </button>
             </div>
@@ -323,93 +122,125 @@
         <!-- Audit Container Section -->
         <div id="audit-view" class="transition-all duration-500 opacity-100 translate-y-0">
             <!-- Single Wide Card Section -->
-            <div class="ultra-glass p-8 py-12 lg:p-14 lg:px-16 rounded-[2.5rem] card-shine flex flex-col lg:flex-row gap-10 lg:gap-16 relative text-left">
-            
-            <!-- Left Side: Description -->
-            <div class="lg:w-1/2 flex flex-col justify-center relative z-10">
-                <div class="flex items-center gap-2 mb-5">
-                    <div class="live-dot w-2 h-2 rounded-full" style="background: #4ade80; box-shadow: 0 0 10px rgba(74, 222, 128, 0.5);"></div>
-                    <span class="text-[10px] font-semibold text-[#4ade80] uppercase tracking-widest" style="letter-spacing: 0.15em;">System Live</span>
+            <div
+                class="ultra-glass p-8 py-12 lg:p-14 lg:px-16 rounded-[2.5rem] card-shine flex flex-col lg:flex-row gap-10 lg:gap-16 relative text-left">
+
+                <!-- Left Side: Description -->
+                <div class="lg:w-1/2 flex flex-col justify-center relative z-10">
+                    <div class="flex items-center gap-2 mb-5">
+                        <div class="live-dot w-2 h-2 rounded-full"
+                            style="background: #4ade80; box-shadow: 0 0 10px rgba(74, 222, 128, 0.5);"></div>
+                        <span class="text-[10px] font-semibold text-[#4ade80] uppercase tracking-widest"
+                            style="letter-spacing: 0.15em;">System Live</span>
+                    </div>
+
+                    <h1
+                        class="text-3xl lg:text-4xl font-extrabold mb-5 tracking-tight silver-shimmer leading-snug drop-shadow-sm">
+                        Edgewood Business <br />Discussion Tracker</h1>
+
+                    <p class="text-[rgba(255,255,255,0.6)] text-sm mb-8 leading-relaxed font-light">
+                        Automate your Business discussion forum audits. Instead of manually searching Canvas to find out
+                        which learner has raised a query and whether a TA has replied, this tool pulls all the activity
+                        instantly.
+                    </p>
+
+                    <h3
+                        class="text-[11px] font-bold mb-5 pb-3 border-b border-[rgba(255,255,255,0.08)] silver-shimmer uppercase tracking-widest w-full">
+                        How it works</h3>
+
+                    <!-- Left-aligned list items -->
+                    <ul class="space-y-5 text-[rgba(255,255,255,0.6)] text-xs font-light w-full">
+                        <li class="flex items-start gap-3.5 group">
+                            <div
+                                class="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.15)] group-hover:bg-[rgba(238,44,60,0.1)] group-hover:border-[#EE2C3C] text-white/90 w-7 h-7 rounded-full flex items-center justify-center font-medium shadow-sm flex-shrink-0 mt-0.5 transition-all">
+                                1</div>
+                            <div class="pt-1"><strong class="silver-shimmer font-medium text-[13px]">Fetch
+                                    Queries:</strong> Connects to Canvas and pulls all posts.</div>
+                        </li>
+                        <li class="flex items-start gap-3.5 group">
+                            <div
+                                class="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.15)] group-hover:bg-[rgba(238,44,60,0.1)] group-hover:border-[#EE2C3C] text-white/90 w-7 h-7 rounded-full flex items-center justify-center font-medium shadow-sm flex-shrink-0 mt-0.5 transition-all">
+                                2</div>
+                            <div class="pt-1"><strong class="silver-shimmer font-medium text-[13px]">Track
+                                    Responses:</strong> Identifies TA replies and calculates durations.</div>
+                        </li>
+                        <li class="flex items-start gap-3.5 group">
+                            <div
+                                class="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.15)] group-hover:bg-[rgba(238,44,60,0.1)] group-hover:border-[#EE2C3C] text-white/90 w-7 h-7 rounded-full flex items-center justify-center font-medium shadow-sm flex-shrink-0 mt-0.5 transition-all">
+                                3</div>
+                            <div class="pt-1"><strong class="silver-shimmer font-medium text-[13px]">Analyze
+                                    SLAs:</strong> Checks if the reply was within the time frame.</div>
+                        </li>
+                    </ul>
                 </div>
-                
-                <h1 class="text-3xl lg:text-4xl font-extrabold mb-5 tracking-tight shiny-text leading-snug drop-shadow-sm">Edgewood Business <br/>Discussion Tracker</h1>
-                
-                <p class="text-[rgba(255,255,255,0.6)] text-sm mb-8 leading-relaxed font-light">
-                    Automate your Business discussion forum audits. Instead of manually searching Canvas to find out which learner has raised a query and whether a TA has replied, this tool pulls all the activity instantly.
-                </p>
-                
-                <h3 class="text-[11px] font-bold mb-5 pb-3 border-b border-[rgba(255,255,255,0.08)] shiny-text uppercase tracking-widest w-full">How it works</h3>
-                
-                <!-- Left-aligned list items -->
-                <ul class="space-y-5 text-[rgba(255,255,255,0.6)] text-xs font-light w-full">
-                    <li class="flex items-start gap-3.5 group">
-                        <div class="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.15)] group-hover:bg-[rgba(238,44,60,0.1)] group-hover:border-[#EE2C3C] text-white/90 w-7 h-7 rounded-full flex items-center justify-center font-medium shadow-sm flex-shrink-0 mt-0.5 transition-all">1</div>
-                        <div class="pt-1"><strong class="shiny-text font-medium text-[13px]">Fetch Queries:</strong> Connects to Canvas and pulls all posts.</div>
-                    </li>
-                    <li class="flex items-start gap-3.5 group">
-                        <div class="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.15)] group-hover:bg-[rgba(238,44,60,0.1)] group-hover:border-[#EE2C3C] text-white/90 w-7 h-7 rounded-full flex items-center justify-center font-medium shadow-sm flex-shrink-0 mt-0.5 transition-all">2</div>
-                        <div class="pt-1"><strong class="shiny-text font-medium text-[13px]">Track Responses:</strong> Identifies TA replies and calculates durations.</div>
-                    </li>
-                    <li class="flex items-start gap-3.5 group">
-                        <div class="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.15)] group-hover:bg-[rgba(238,44,60,0.1)] group-hover:border-[#EE2C3C] text-white/90 w-7 h-7 rounded-full flex items-center justify-center font-medium shadow-sm flex-shrink-0 mt-0.5 transition-all">3</div>
-                        <div class="pt-1"><strong class="shiny-text font-medium text-[13px]">Analyze SLAs:</strong> Checks if the reply was within the time frame.</div>
-                    </li>
-                </ul>
-            </div>
 
-            <!-- Subtle Vertical Divider -->
-            <div class="hidden lg:block w-px bg-gradient-to-b from-transparent via-[rgba(255,255,255,0.1)] to-transparent relative z-10"></div>
+                <!-- Subtle Vertical Divider -->
+                <div
+                    class="hidden lg:block w-px bg-gradient-to-b from-transparent via-[rgba(255,255,255,0.1)] to-transparent relative z-10">
+                </div>
 
-            <!-- Right Side: Input & Form -->
-            <div class="lg:w-1/2 flex flex-col justify-center relative z-10 lg:pl-4">
-                <h2 class="text-2xl lg:text-3xl font-bold mb-3 shiny-text tracking-tight">Generate Report</h2>
-                <p class="text-[rgba(255,255,255,0.6)] mb-8 text-sm font-light">Enter the course codes below to generate your comprehensive audit report in Excel.</p>
-                
-                <form id="tracker-form" class="space-y-6 w-full">
-                    <div class="w-full relative">
-                        <label class="block text-[10px] font-semibold text-white/60 mb-2.5 uppercase tracking-widest text-left" for="course_codes">
-                             Course Code(s)
-                        </label>
-                        <input 
-                            type="text" 
-                            id="course_codes" 
-                            name="course_codes" 
-                            placeholder="e.g. BUS-910-UC5--Spring-2026" 
-                            required
-                            class="input-glow w-full bg-[rgba(0,0,0,0.3)] border border-[rgba(255,255,255,0.12)] text-white text-left text-sm rounded-xl px-5 py-4 focus:outline-none transition-all shadow-inner placeholder-[rgba(255,255,255,0.15)] backdrop-blur-sm"
-                        />
-                        <div class="mt-4 p-4 rounded-xl bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.04)] backdrop-blur-sm text-left hover:bg-[rgba(255,255,255,0.03)] transition-colors">
-                            <p class="text-[11px] text-[rgba(255,255,255,0.5)] leading-relaxed font-light">
-                                <strong class="text-white/80 font-medium">What is a course code?</strong><br/>
-                                The course code is the SIS ID from Canvas. You can enter multiple IDs separated by commas. Note: This tool only processes Business (BUS) courses.
-                                <br/><br/><span class="text-white/40">Example:</span><br/> <code class="bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.1)] text-white/90 px-2.5 py-1.5 rounded text-[11px] mt-1.5 inline-block font-medium shadow-sm break-all font-mono">BUS-910-UC5--Spring-2026</code>
-                            </p>
+                <!-- Right Side: Input & Form -->
+                <div class="lg:w-1/2 flex flex-col justify-center relative z-10 lg:pl-4">
+                    <h2 class="text-2xl lg:text-3xl font-bold mb-3 silver-shimmer tracking-tight">Generate Report</h2>
+                    <p class="text-[rgba(255,255,255,0.6)] mb-8 text-sm font-light">Enter the course codes below to
+                        generate your comprehensive audit report in Excel.</p>
+
+                    <form id="tracker-form" class="space-y-6 w-full">
+                        <div class="w-full relative">
+                            <label
+                                class="block text-[10px] font-semibold text-white/60 mb-2.5 uppercase tracking-widest text-left"
+                                for="course_codes">
+                                Course Code(s)
+                            </label>
+                            <input type="text" id="course_codes" name="course_codes"
+                                placeholder="e.g. BUS-910-UC5--Spring-2026" required
+                                class="input-glow w-full bg-[rgba(0,0,0,0.3)] border border-[rgba(255,255,255,0.12)] text-white text-left text-sm rounded-xl px-5 py-4 focus:outline-none transition-all shadow-inner placeholder-[rgba(255,255,255,0.15)] backdrop-blur-sm" />
+                            <div
+                                class="mt-4 p-4 rounded-xl bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.04)] backdrop-blur-sm text-left hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                                <p class="text-[11px] text-[rgba(255,255,255,0.5)] leading-relaxed font-light">
+                                    <strong class="text-white/80 font-medium">What is a course code?</strong><br />
+                                    The course code is the SIS ID from Canvas. You can enter multiple IDs separated by
+                                    commas. Note: This tool only processes Business (BUS) courses.
+                                    <br /><br /><span class="text-white/40">Example:</span><br /> <code
+                                        class="bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.1)] text-white/90 px-2.5 py-1.5 rounded text-[11px] mt-1.5 inline-block font-medium shadow-sm break-all font-mono">BUS-910-UC5--Spring-2026</code>
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="star-border-container w-full">
-                        <div class="border-gradient-bottom"></div>
-                        <div class="border-gradient-top"></div>
-                        <button type="submit" id="submit-btn" class="star-border-inner w-full py-3.5 bg-white/10 hover:bg-white/15 text-white text-sm font-semibold rounded-xl transition-all flex justify-center items-center gap-2.5 border border-[rgba(255,255,255,0.2)] shadow-lg backdrop-blur-md group hover:border-[rgba(255,255,255,0.3)] hover:shadow-xl">
+
+                        <button type="submit" id="submit-btn"
+                            class="w-full py-3.5 bg-white/10 hover:bg-white/15 text-white text-sm font-semibold rounded-xl transition-all flex justify-center items-center gap-2.5 border border-[rgba(255,255,255,0.2)] shadow-lg backdrop-blur-md group hover:border-[rgba(255,255,255,0.3)] hover:shadow-xl">
                             <span id="btn-text">Download Audit Report</span>
-                            <svg id="btn-icon" class="w-4 h-4 opacity-80 transform group-hover:translate-y-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                        </button>
-                    </div>
-
-                    <!-- Live Progress Terminal (Pre-allocated height but invisible to prevent jumping) -->
-                    <div id="progress-container" class="mt-4 w-full transform transition-all duration-500 opacity-0 translate-y-4 pointer-events-none h-12">
-                        <div class="bg-[#050507] border border-[rgba(255,255,255,0.08)] rounded-xl p-3 px-4 shadow-inner relative overflow-hidden flex items-center gap-3">
-                            <div class="absolute left-0 top-0 bottom-0 w-1 bg-[#EE2C3C] animate-pulse"></div>
-                            <svg class="animate-spin h-3.5 w-3.5 text-[#EE2C3C] flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            <svg id="btn-icon"
+                                class="w-4 h-4 opacity-80 transform group-hover:translate-y-0.5 transition-all"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                             </svg>
-                            <span id="progress-text" class="text-xs font-mono text-[rgba(255,255,255,0.8)] tracking-wide truncate">Warming up Audit Engine...</span>
+                        </button>
+
+                        <!-- Live Progress Terminal (Pre-allocated height but invisible to prevent jumping) -->
+                        <div id="progress-container"
+                            class="mt-4 w-full transform transition-all duration-500 opacity-0 translate-y-4 pointer-events-none h-12">
+                            <div
+                                class="bg-[#050507] border border-[rgba(255,255,255,0.08)] rounded-xl p-3 px-4 shadow-inner relative overflow-hidden flex items-center gap-3">
+                                <div class="absolute left-0 top-0 bottom-0 w-1 bg-[#EE2C3C] animate-pulse"></div>
+                                <svg class="animate-spin h-3.5 w-3.5 text-[#EE2C3C] flex-shrink-0"
+                                    xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                        stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                    </path>
+                                </svg>
+                                <span id="progress-text"
+                                    class="text-xs font-mono text-[rgba(255,255,255,0.8)] tracking-wide truncate">Warming
+                                    up Audit Engine...</span>
+                            </div>
                         </div>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
-        </div>
         </div> <!-- End of audit-view -->
 
         <!-- Dashboard Section -->
@@ -420,37 +251,45 @@
                 <!-- Title + Sync Row -->
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pl-1 pr-1">
                     <div>
-                        <h2 class="text-xl lg:text-2xl font-extrabold shiny-text tracking-tight">Executive SLA Dashboard</h2>
-                        <p class="text-white/40 text-[10px] font-light mt-0.5">Real-time platform support intelligence &mdash; auto-synced every 10 seconds.</p>
+                        <h2 class="text-xl lg:text-2xl font-extrabold silver-shimmer tracking-tight">Executive SLA
+                            Dashboard</h2>
+                        <p class="text-white/40 text-[10px] font-light mt-0.5">Real-time platform support intelligence
+                            &mdash; auto-synced every 10 seconds.</p>
                     </div>
-                    <div class="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/[0.08] text-white text-xs font-medium rounded-xl flex-shrink-0">
-                        <div id="sync-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                    <div
+                        class="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/[0.08] text-white text-xs font-medium rounded-xl flex-shrink-0">
+                        <div id="sync-dot"
+                            class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
                         <span class="text-[10px] text-white/70 font-mono" id="sync-status-text">Synced</span>
                     </div>
                 </div>
 
                 <!-- PREMIUM Learner Search Bar (always visible at top) -->
                 <div class="relative">
-                    <div id="learner-search-wrap" class="flex gap-2 items-center p-1 bg-white/[0.03] border border-white/[0.08] rounded-2xl transition-all duration-300 hover:border-white/20 focus-within:border-white/30 focus-within:bg-white/[0.06]">
+                    <div id="learner-search-wrap"
+                        class="flex gap-2 items-center p-1 bg-white/[0.03] border border-white/[0.08] rounded-2xl transition-all duration-300 hover:border-white/20 focus-within:border-white/30 focus-within:bg-white/[0.06]">
                         <!-- Search Icon -->
-                        <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-white/[0.04] flex-shrink-0 ml-0.5">
-                            <svg class="w-3.5 h-3.5 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <div
+                            class="flex items-center justify-center w-9 h-9 rounded-xl bg-white/[0.04] flex-shrink-0 ml-0.5">
+                            <svg class="w-3.5 h-3.5 text-white/40" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
                         </div>
                         <!-- Input -->
-                        <input id="learner-search-input"
-                            type="text"
+                        <input id="learner-search-input" type="text"
                             placeholder="Search learner by name, email ID, or student ID..."
                             class="flex-grow bg-transparent text-white text-xs placeholder-white/25 focus:outline-none py-2 pr-2 font-medium"
-                            oninput="runLearnerSearch()"
-                            onfocus="showLearnerResults()"
-                            autocomplete="off"
-                        />
+                            oninput="runLearnerSearch()" onfocus="showLearnerResults()" autocomplete="off" />
                         <!-- Clear button -->
-                        <button onclick="clearLearnerSearch()" class="flex-shrink-0 px-3 py-1.5 text-[10px] font-semibold text-white/40 hover:text-white hover:bg-white/[0.08] rounded-xl transition-all mr-0.5">Clear</button>
+                        <button onclick="clearLearnerSearch()"
+                            class="flex-shrink-0 px-3 py-1.5 text-[10px] font-semibold text-white/40 hover:text-white hover:bg-white/[0.08] rounded-xl transition-all mr-0.5">Clear</button>
                     </div>
 
                     <!-- Search Results Dropdown (shows when typing) -->
-                    <div id="learner-search-results" class="hidden mt-2 space-y-3 max-h-[480px] overflow-y-auto custom-scrollbar pr-1">
+                    <div id="learner-search-results"
+                        class="hidden mt-2 space-y-3 max-h-[480px] overflow-y-auto custom-scrollbar pr-1">
                         <!-- Populated by JS -->
                     </div>
                 </div>
@@ -458,8 +297,12 @@
 
             <!-- Dashboard Sub-Navigation (Overview + TA Performance) -->
             <div class="flex items-center gap-1 p-1 bg-white/[0.03] border border-white/[0.06] rounded-2xl w-fit">
-                <button id="dash-tab-overview" onclick="switchDashTab('overview')" class="px-4 py-1.5 text-[11px] font-semibold rounded-xl transition-all bg-white/[0.08] border border-white/[0.06] text-white">&#x1F4CA; Overview</button>
-                <button id="dash-tab-ta" onclick="switchDashTab('ta')" class="px-4 py-1.5 text-[11px] font-semibold rounded-xl transition-all text-white/50 hover:text-white">&#x1F3C5; TA Performance</button>
+                <button id="dash-tab-overview" onclick="switchDashTab('overview')"
+                    class="px-4 py-1.5 text-[11px] font-semibold rounded-xl transition-all bg-white/[0.08] border border-white/[0.06] text-white">&#x1F4CA;
+                    Overview</button>
+                <button id="dash-tab-ta" onclick="switchDashTab('ta')"
+                    class="px-4 py-1.5 text-[11px] font-semibold rounded-xl transition-all text-white/50 hover:text-white">&#x1F3C5;
+                    TA Performance</button>
             </div>
 
             <!-- Loading Skeleton -->
@@ -479,11 +322,17 @@
             </div>
 
             <!-- Error State -->
-            <div id="dashboard-error" class="hidden ultra-glass p-10 rounded-[2rem] text-center max-w-md mx-auto flex flex-col items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 text-lg font-bold">!</div>
+            <div id="dashboard-error"
+                class="hidden ultra-glass p-10 rounded-[2rem] text-center max-w-md mx-auto flex flex-col items-center gap-3">
+                <div
+                    class="w-10 h-10 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 text-lg font-bold">
+                    !</div>
                 <h3 class="text-sm font-semibold text-white/90">Sync Failed</h3>
-                <p id="dashboard-error-msg" class="text-white/50 text-[11px] leading-relaxed max-w-sm">Failed to connect to Google Sheets database or retrieve metrics.</p>
-                <button id="btn-retry-dashboard" class="mt-1 px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/30 text-white text-[11px] font-semibold rounded-xl transition-all">Retry Sync</button>
+                <p id="dashboard-error-msg" class="text-white/50 text-[11px] leading-relaxed max-w-sm">Failed to connect
+                    to Google Sheets database or retrieve metrics.</p>
+                <button id="btn-retry-dashboard"
+                    class="mt-1 px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/30 text-white text-[11px] font-semibold rounded-xl transition-all">Retry
+                    Sync</button>
             </div>
 
             <!-- ================================================================ -->
@@ -493,15 +342,19 @@
 
                 <!-- Filters Row -->
                 <div class="flex flex-wrap items-center gap-3">
-                    <div class="flex items-center gap-1.5 bg-white/[0.02] border border-white/[0.08] rounded-xl px-2.5 py-1.5">
+                    <div
+                        class="flex items-center gap-1.5 bg-white/[0.02] border border-white/[0.08] rounded-xl px-2.5 py-1.5">
                         <span class="text-[9px] font-semibold text-white/40 uppercase tracking-wider">Cohort:</span>
-                        <select id="filter-cohort" class="bg-transparent text-white text-xs font-semibold focus:outline-none cursor-pointer">
+                        <select id="filter-cohort"
+                            class="bg-transparent text-white text-xs font-semibold focus:outline-none cursor-pointer">
                             <option value="All" class="bg-[#050505] text-white">All Cohorts</option>
                         </select>
                     </div>
-                    <div class="flex items-center gap-1.5 bg-white/[0.02] border border-white/[0.08] rounded-xl px-2.5 py-1.5">
+                    <div
+                        class="flex items-center gap-1.5 bg-white/[0.02] border border-white/[0.08] rounded-xl px-2.5 py-1.5">
                         <span class="text-[9px] font-semibold text-white/40 uppercase tracking-wider">Course:</span>
-                        <select id="filter-course" class="bg-transparent text-white text-xs font-semibold focus:outline-none cursor-pointer max-w-[160px] truncate">
+                        <select id="filter-course"
+                            class="bg-transparent text-white text-xs font-semibold focus:outline-none cursor-pointer max-w-[160px] truncate">
                             <option value="All" class="bg-[#050505] text-white">All Courses</option>
                         </select>
                     </div>
@@ -510,44 +363,51 @@
                 <!-- KPI Cards -->
                 <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
                     <div class="ultra-glass p-4 rounded-2xl group hover:border-white/[0.08] transition-all">
-                        <span class="text-[9px] font-bold text-white/40 uppercase tracking-wider block mb-1">Total Courses</span>
+                        <span class="text-[9px] font-bold text-white/40 uppercase tracking-wider block mb-1">Total
+                            Courses</span>
                         <div class="flex items-baseline gap-1">
                             <span id="stat-courses" class="text-xl font-black text-white tracking-tight">--</span>
                             <span class="text-[9px] text-white/30">active</span>
                         </div>
                     </div>
                     <div class="ultra-glass p-4 rounded-2xl group hover:border-white/[0.08] transition-all">
-                        <span class="text-[9px] font-bold text-white/40 uppercase tracking-wider block mb-1">Total Queries</span>
+                        <span class="text-[9px] font-bold text-white/40 uppercase tracking-wider block mb-1">Total
+                            Queries</span>
                         <div class="flex items-baseline gap-1">
                             <span id="stat-discussions" class="text-xl font-black text-white tracking-tight">--</span>
                             <span class="text-[9px] text-white/30">raised</span>
                         </div>
                     </div>
                     <div class="ultra-glass p-4 rounded-2xl group hover:border-white/[0.08] transition-all">
-                        <span class="text-[9px] font-bold text-white/40 uppercase tracking-wider block mb-1">Total Replied</span>
+                        <span class="text-[9px] font-bold text-white/40 uppercase tracking-wider block mb-1">Total
+                            Replied</span>
                         <div class="flex items-baseline gap-1">
                             <span id="stat-replied" class="text-xl font-black text-emerald-400 tracking-tight">--</span>
                             <span class="text-[9px] text-emerald-400/50">done</span>
                         </div>
                     </div>
                     <div class="ultra-glass p-4 rounded-2xl group hover:border-white/[0.08] transition-all">
-                        <span class="text-[9px] font-bold text-white/40 uppercase tracking-wider block mb-1">Avg Response TAT</span>
+                        <span class="text-[9px] font-bold text-white/40 uppercase tracking-wider block mb-1">Avg
+                            Response TAT</span>
                         <div class="flex items-baseline gap-1">
                             <span id="stat-tat" class="text-xl font-black text-white tracking-tight">--</span>
                             <span class="text-[9px] text-white/40 font-semibold">hrs</span>
                         </div>
                     </div>
                     <div class="ultra-glass p-4 rounded-2xl group hover:border-white/[0.08] transition-all">
-                        <span class="text-[9px] font-bold text-white/40 uppercase tracking-wider block mb-1">Pending Responses</span>
+                        <span class="text-[9px] font-bold text-white/40 uppercase tracking-wider block mb-1">Pending
+                            Responses</span>
                         <div class="flex items-baseline gap-1">
                             <span id="stat-pending" class="text-xl font-black text-amber-400 tracking-tight">--</span>
                             <span class="text-[9px] text-amber-400/50">unresolved</span>
                         </div>
                     </div>
                     <div class="ultra-glass p-4 rounded-2xl group hover:border-white/[0.08] transition-all">
-                        <span class="text-[9px] font-bold text-white/40 uppercase tracking-wider block mb-1">SLA Compliance</span>
+                        <span class="text-[9px] font-bold text-white/40 uppercase tracking-wider block mb-1">SLA
+                            Compliance</span>
                         <div class="flex items-baseline gap-1">
-                            <span id="stat-compliance-percent" class="text-xl font-black text-white tracking-tight">--</span>
+                            <span id="stat-compliance-percent"
+                                class="text-xl font-black text-white tracking-tight">--</span>
                             <span class="text-[9px] text-white/40 font-semibold">%</span>
                         </div>
                     </div>
@@ -555,25 +415,30 @@
 
                 <!-- Main Dashboard Layout Grid (Left content column + Right sidebar column) -->
                 <div class="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
-                    
+
                     <!-- Left Column: Primary Tables (col-span-2) -->
                     <div class="xl:col-span-2 space-y-5">
-                        
+
                         <!-- Course Breakdown Table -->
                         <div class="ultra-glass p-5 rounded-3xl flex flex-col h-[340px]">
                             <div class="flex items-center gap-2 mb-4 pl-1">
                                 <div class="w-1 h-3.5 bg-[#EE2C3C] rounded-full"></div>
-                                <h4 class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Course-wise Query Breakdown</h4>
+                                <h4 class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Course-wise
+                                    Query Breakdown</h4>
                             </div>
                             <div class="overflow-y-auto flex-grow pr-1 custom-scrollbar">
                                 <table class="w-full text-left text-[11px] border-collapse">
                                     <thead>
                                         <tr class="text-white/40 border-b border-white/[0.08]">
                                             <th class="py-2 pl-2 font-medium uppercase tracking-wider">Course</th>
-                                            <th class="py-2 font-medium uppercase tracking-wider text-center">Queries</th>
-                                            <th class="py-2 font-medium uppercase tracking-wider text-center">Replied</th>
-                                            <th class="py-2 font-medium uppercase tracking-wider text-center">Pending</th>
-                                            <th class="py-2 font-medium uppercase tracking-wider text-center">SLA Breach</th>
+                                            <th class="py-2 font-medium uppercase tracking-wider text-center">Queries
+                                            </th>
+                                            <th class="py-2 font-medium uppercase tracking-wider text-center">Replied
+                                            </th>
+                                            <th class="py-2 font-medium uppercase tracking-wider text-center">Pending
+                                            </th>
+                                            <th class="py-2 font-medium uppercase tracking-wider text-center">SLA Breach
+                                            </th>
                                             <th class="py-2 font-medium uppercase tracking-wider text-center">Risk</th>
                                         </tr>
                                     </thead>
@@ -586,7 +451,8 @@
                         <div class="ultra-glass p-5 rounded-3xl flex flex-col h-[300px]">
                             <div class="flex items-center gap-2 mb-4 pl-1">
                                 <div class="w-1 h-3.5 bg-blue-500 rounded-full"></div>
-                                <h4 class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Learner Support Risk (Unanswered)</h4>
+                                <h4 class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Learner
+                                    Support Risk (Unanswered)</h4>
                             </div>
                             <div class="overflow-y-auto flex-grow pr-1 custom-scrollbar">
                                 <table class="w-full text-left text-[11px] border-collapse">
@@ -594,8 +460,10 @@
                                         <tr class="text-white/40 border-b border-white/[0.08]">
                                             <th class="py-2 pl-2 font-medium uppercase tracking-wider">Learner</th>
                                             <th class="py-2 font-medium uppercase tracking-wider">Course</th>
-                                            <th class="py-2 font-medium uppercase tracking-wider text-center">Unanswered</th>
-                                            <th class="py-2 font-medium uppercase tracking-wider text-center">Risk Level</th>
+                                            <th class="py-2 font-medium uppercase tracking-wider text-center">Unanswered
+                                            </th>
+                                            <th class="py-2 font-medium uppercase tracking-wider text-center">Risk Level
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody id="learner-risks-body" class="divide-y divide-white/[0.02]"></tbody>
@@ -606,21 +474,31 @@
 
                     <!-- Right Column: Sidebar (col-span-1) -->
                     <div class="xl:col-span-1 space-y-5">
-                        
+
                         <!-- SLA Doughnut Chart -->
-                        <div class="ultra-glass p-5 rounded-3xl flex flex-col justify-between items-center text-center relative overflow-hidden h-[340px]">
-                            <h4 class="text-[9px] font-bold text-white/40 uppercase tracking-wider self-start pl-1">SLA Status Distribution</h4>
+                        <div
+                            class="ultra-glass p-5 rounded-3xl flex flex-col justify-between items-center text-center relative overflow-hidden h-[340px]">
+                            <h4 class="text-[9px] font-bold text-white/40 uppercase tracking-wider self-start pl-1">SLA
+                                Status Distribution</h4>
                             <div class="relative w-40 h-40 flex items-center justify-center">
                                 <canvas id="slaDoughnutChart" class="relative z-10"></canvas>
                                 <div class="absolute flex flex-col justify-center items-center">
                                     <span id="doughnut-center-percent" class="text-2xl font-black text-white">--%</span>
-                                    <span class="text-[7px] font-medium text-white/40 uppercase tracking-wider mt-0.5">Met SLA</span>
+                                    <span
+                                        class="text-[7px] font-medium text-white/40 uppercase tracking-wider mt-0.5">Met
+                                        SLA</span>
                                 </div>
                             </div>
                             <div class="flex justify-center gap-4 text-[9px] w-full border-t border-white/[0.04] pt-3">
-                                <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span><span class="text-white/50">On-Time</span></div>
-                                <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span><span class="text-white/50">Delayed</span></div>
-                                <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-yellow-500 inline-block"></span><span class="text-white/50">Pending</span></div>
+                                <div class="flex items-center gap-1.5"><span
+                                        class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span><span
+                                        class="text-white/50">On-Time</span></div>
+                                <div class="flex items-center gap-1.5"><span
+                                        class="w-2 h-2 rounded-full bg-red-500 inline-block"></span><span
+                                        class="text-white/50">Delayed</span></div>
+                                <div class="flex items-center gap-1.5"><span
+                                        class="w-2 h-2 rounded-full bg-yellow-500 inline-block"></span><span
+                                        class="text-white/50">Pending</span></div>
                             </div>
                         </div>
 
@@ -628,19 +506,23 @@
                         <div class="ultra-glass p-5 rounded-3xl flex flex-col h-[280px]">
                             <div class="flex items-center gap-2 mb-3 pl-1">
                                 <div class="w-1 h-3.5 bg-[#EE2C3C] rounded-full"></div>
-                                <h4 class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Critical Escalations</h4>
+                                <h4 class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Critical
+                                    Escalations</h4>
                             </div>
-                            <div class="overflow-y-auto flex-grow space-y-3 pr-1 custom-scrollbar" id="escalation-alerts-container"></div>
+                            <div class="overflow-y-auto flex-grow space-y-3 pr-1 custom-scrollbar"
+                                id="escalation-alerts-container"></div>
                         </div>
 
                         <!-- Module Bottleneck -->
                         <div class="ultra-glass p-5 rounded-3xl flex flex-col h-[300px]">
                             <div class="flex items-center gap-2 mb-3 pl-1">
                                 <div class="w-1 h-3.5 bg-amber-500 rounded-full"></div>
-                                <h4 class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Module Bottlenecks</h4>
+                                <h4 class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Module
+                                    Bottlenecks</h4>
                             </div>
                             <p class="text-[10px] text-white/40 mb-3 pl-1 font-light">Avg delay by topic/module.</p>
-                            <div class="overflow-y-auto flex-grow space-y-3 pr-1 custom-scrollbar" id="module-bottlenecks-body"></div>
+                            <div class="overflow-y-auto flex-grow space-y-3 pr-1 custom-scrollbar"
+                                id="module-bottlenecks-body"></div>
                         </div>
                     </div>
                 </div>
@@ -661,8 +543,9 @@
                 <div class="ultra-glass p-5 rounded-3xl flex flex-col">
                     <div class="flex items-center gap-2 mb-4 pl-1">
                         <div class="w-1 h-3.5 bg-emerald-500 rounded-full"></div>
-                        <h4 class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Full TA Leaderboard</h4>
-                        <span class="ml-auto text-[9px] text-white/30 font-light">Sorted by SLA Compliance &darr;</span>
+                        <h4 class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Full TA Leaderboard
+                        </h4>
+                        <span class="ml-auto text-[9px] text-white/30 font-light">Sorted by Combined Score &darr;</span>
                     </div>
                     <div class="overflow-x-auto pr-1 custom-scrollbar">
                         <table class="w-full text-left text-[11px] border-collapse min-w-[680px]">
@@ -671,11 +554,13 @@
                                     <th class="py-2 pl-2 font-medium uppercase tracking-wider w-6">#</th>
                                     <th class="py-2 font-medium uppercase tracking-wider">TA / SME Name</th>
                                     <th class="py-2 font-medium uppercase tracking-wider text-center">Total Replied</th>
-                                    <th class="py-2 font-medium uppercase tracking-wider text-center">Pending (Unanswered)</th>
+                                    <th class="py-2 font-medium uppercase tracking-wider text-center">Pending
+                                        (Unanswered)</th>
                                     <th class="py-2 font-medium uppercase tracking-wider text-center">Avg Response</th>
                                     <th class="py-2 font-medium uppercase tracking-wider text-center">On-Time</th>
                                     <th class="py-2 font-medium uppercase tracking-wider text-center">Delayed</th>
                                     <th class="py-2 font-medium uppercase tracking-wider text-center">SLA %</th>
+                                    <th class="py-2 font-medium uppercase tracking-wider text-center">Combined Score</th>
                                 </tr>
                             </thead>
                             <tbody id="ta-leaderboard-body" class="divide-y divide-white/[0.02]"></tbody>
@@ -687,31 +572,42 @@
                 <div class="ultra-glass p-5 rounded-3xl">
                     <div class="flex items-center gap-2 mb-4 pl-1">
                         <div class="w-1 h-3.5 bg-purple-500 rounded-full"></div>
-                        <h4 class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Operational Capacity View</h4>
-                        <span class="ml-auto text-[9px] text-white/30 font-light">Reply volume relative to max observed</span>
+                        <h4 class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Operational Capacity
+                            View</h4>
+                        <span class="ml-auto text-[9px] text-white/30 font-light">Reply volume relative to max
+                            observed</span>
                     </div>
                     <div class="space-y-3" id="ta-workload-body"></div>
                 </div>
             </div>
 
         </div>
-        </div> <!-- End of relative container -->
+    </div> <!-- End of relative container -->
 
     <!-- Course Detail Modal -->
-    <div id="course-detail-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-all duration-300 opacity-0">
-        <div class="ultra-glass w-full max-w-5xl rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[85vh] transform scale-95 opacity-0 transition-all duration-300">
+    <div id="course-detail-modal"
+        class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-all duration-300 opacity-0">
+        <div
+            class="ultra-glass w-full max-w-5xl rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[85vh] transform scale-95 opacity-0 transition-all duration-300">
             <!-- Modal Header -->
             <div class="flex justify-between items-center border-b border-white/[0.08] pb-4 mb-4">
                 <div>
-                    <h3 class="text-base font-extrabold text-white tracking-tight" id="course-modal-title">Course Details</h3>
-                    <p class="text-white/40 text-[9px] font-light mt-0.5">Comprehensive audit log for all forum queries in this course.</p>
+                    <h3 class="text-base font-extrabold text-white tracking-tight" id="course-modal-title">Course
+                        Details</h3>
+                    <p class="text-white/40 text-[9px] font-light mt-0.5">Comprehensive audit log for all forum queries
+                        in this course.</p>
                 </div>
                 <div class="flex items-center gap-2">
-                    <a id="course-modal-sheet-link" target="_blank" class="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/35 hover:border-emerald-500/50 text-emerald-400 hover:text-emerald-300 text-[10px] font-bold rounded-xl transition-all shadow-sm">
+                    <a id="course-modal-sheet-link" target="_blank"
+                        class="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/35 hover:border-emerald-500/50 text-emerald-400 hover:text-emerald-300 text-[10px] font-bold rounded-xl transition-all shadow-sm">
                         <span>View in Google Sheet</span>
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
                     </a>
-                    <button onclick="closeCourseDetailModal()" class="px-3 py-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/50 hover:text-white text-[10px] font-bold rounded-xl transition-all">
+                    <button onclick="closeCourseDetailModal()"
+                        class="px-3 py-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/50 hover:text-white text-[10px] font-bold rounded-xl transition-all">
                         Close
                     </button>
                 </div>
@@ -758,7 +654,7 @@
             // Button styles updates (capsule style matching image)
             activeBtn.classList.add('bg-[rgba(255,255,255,0.08)]', 'border', 'border-[rgba(255,255,255,0.05)]', 'text-white');
             activeBtn.classList.remove('text-white/50', 'hover:text-white');
-            
+
             inactiveBtn.classList.remove('bg-[rgba(255,255,255,0.08)]', 'border', 'border-[rgba(255,255,255,0.05)]', 'text-white');
             inactiveBtn.classList.add('text-white/50', 'hover:text-white');
 
@@ -953,7 +849,6 @@
             renderLearnerRisk(filtered);
             renderEscalationTracker(filtered);
             renderTrendsSection(filtered);
-            initCardGlowEffects();
         }
 
         // ============================================================
@@ -964,29 +859,29 @@
         function renderExecutiveSummary(queries) {
             // Courses count
             const uniqueCourses = new Set(queries.map(q => q.course_name).filter(Boolean));
-            animateNumberValue('stat-courses', uniqueCourses.size);
+            animateNumber('stat-courses', uniqueCourses.size);
 
             // Valid discussion queries
             const totalDiscussions = queries.filter(q => q.learner_name && q.learner_name !== "(No student posts yet)").length;
-            animateNumberValue('stat-discussions', totalDiscussions);
+            animateNumber('stat-discussions', totalDiscussions);
 
             // Replied queries
             const repliedQueries = queries.filter(q => q.replied === "Yes");
-            animateNumberValue('stat-replied', repliedQueries.length);
+            animateNumber('stat-replied', repliedQueries.length);
 
             // Avg TAT
             const durations = repliedQueries.map(q => q.duration_hours).filter(d => typeof d === 'number' && !isNaN(d));
             const avgTAT = durations.length > 0 ? (durations.reduce((a, b) => a + b, 0) / durations.length) : 0.0;
-            animateNumberValue('stat-tat', avgTAT);
+            animateNumber('stat-tat', avgTAT, 1);
 
             // Pending = learner queries not yet replied
             const pendingCount = queries.filter(q => q.replied === "No" && q.learner_name && q.learner_name !== "(No student posts yet)").length;
-            animateNumberValue('stat-pending', pendingCount);
+            animateNumber('stat-pending', pendingCount);
 
             // SLA compliance (includes unanswered breached queries > 24h as Delayed)
             const onTimeCount = repliedQueries.filter(q => q.sla_status === "On Time Response").length;
             const repliedDelayed = repliedQueries.filter(q => q.sla_status === "Delayed Response").length;
-            
+
             let unansweredDelayed = 0;
             queries.forEach(q => {
                 if (q.replied === "No" && q.created_dt_iso && q.learner_name && q.learner_name !== "(No student posts yet)") {
@@ -1000,7 +895,8 @@
 
             const totalSLA = onTimeCount + repliedDelayed + unansweredDelayed;
             const slaCompliance = totalSLA > 0 ? ((onTimeCount / totalSLA) * 100) : 100;
-            animateNumberValue('stat-compliance-percent', Math.round(slaCompliance));
+            animateNumber('stat-compliance-percent', Math.round(slaCompliance));
+            animateNumber('doughnut-center-percent', Math.round(slaCompliance), 0, '', '%');
         }
 
         // 2 & 8. TA Performance & Workload Rendering
@@ -1014,184 +910,186 @@
             if (taHighlightCards) taHighlightCards.innerHTML = '';
             if (taVolumeCards) taVolumeCards.innerHTML = '';
 
-            // Build TA map from all queries (replied and pending)
+            // Build TA map from replied queries
             const taMap = {};
             queries.forEach(q => {
                 const taName = q.replied_by_name || q.first_responder;
-                if (!taName || taName === "N/A") return;
-                
+                if (!taName || taName === "N/A" || q.replied !== "Yes") return;
                 if (!taMap[taName]) {
-                    taMap[taName] = { 
-                        name: taName, 
-                        replies: 0, 
-                        onTime: 0, 
-                        delayed: 0, 
-                        pending: 0, 
-                        pendingBreached: 0, 
-                        durations: [], 
-                        courses: new Set() 
-                    };
+                    taMap[taName] = { name: taName, replies: 0, onTime: 0, delayed: 0, durations: [], courses: new Set() };
                 }
-                
-                if (q.replied === "Yes") {
-                    taMap[taName].replies++;
-                    taMap[taName].courses.add(q.course_name);
-                    if (q.sla_status === "On Time Response") taMap[taName].onTime++;
-                    else if (q.sla_status === "Delayed Response") taMap[taName].delayed++;
-                    if (typeof q.duration_hours === 'number' && !isNaN(q.duration_hours)) taMap[taName].durations.push(q.duration_hours);
-                } else if (q.replied === "No" && q.learner_name && q.learner_name !== "(No student posts yet)") {
-                    taMap[taName].pending++;
-                    taMap[taName].courses.add(q.course_name);
-                    if (q.created_dt_iso) {
-                        const elapsedMs = Date.now() - Date.parse(q.created_dt_iso);
-                        const elapsedHrs = elapsedMs / (1000 * 60 * 60);
-                        if (elapsedHrs > 24) {
-                            taMap[taName].pendingBreached++;
-                        }
-                    }
+                taMap[taName].replies++;
+                taMap[taName].courses.add(q.course_name);
+                if (q.sla_status === "On Time Response") taMap[taName].onTime++;
+                else if (q.sla_status === "Delayed Response") taMap[taName].delayed++;
+                if (typeof q.duration_hours === 'number' && !isNaN(q.duration_hours)) taMap[taName].durations.push(q.duration_hours);
+            });
+
+            // Count pending per TA (unanswered queries where TA is the responder reference)
+            const taPendingMap = {};
+            queries.forEach(q => {
+                const taName = q.replied_by_name || q.first_responder;
+                if (!taName || taName === "N/A") return;
+                if (q.replied === "No" && q.learner_name && q.learner_name !== "(No student posts yet)") {
+                    taPendingMap[taName] = (taPendingMap[taName] || 0) + 1;
                 }
             });
 
-            // Enrich TA list
-            const tas = Object.values(taMap).map(ta => {
-                const avgTime = ta.durations.length > 0 ? (ta.durations.reduce((a, b) => a + b, 0) / ta.durations.length) : 0.0;
-                const totalSlaQueries = ta.onTime + ta.delayed + ta.pendingBreached;
-                const compliance = totalSlaQueries > 0 ? ((ta.onTime / totalSlaQueries) * 100) : 100.0;
-                const pendingForTA = ta.pending;
-                const pendingBreached = ta.pendingBreached;
-                let tier = "N/A", tierClass = "text-white/40";
-                
-                if (totalSlaQueries > 0) {
-                    if (compliance >= 90) { tier = "🏆 Elite"; tierClass = "text-emerald-400 font-bold"; }
-                    else if (compliance >= 75) { tier = "🟢 Meets SLA"; tierClass = "text-green-300 font-medium"; }
-                    else { tier = "⚠️ Needs Support"; tierClass = "text-[#EE2C3C] font-bold"; }
-                }
-                return { ...ta, avgTime, compliance, tier, tierClass, pendingForTA, pendingBreached };
-            });
-
-            // Sort by compound performance criteria:
-            // 1. Compliance rate descending (higher met SLA is better)
-            // 2. Average response time ascending (only for those who have replies, others go to bottom)
-            // 3. Combined SLA violations ascending (delayed replies + pending breached queries)
-            // 4. Total replies volume descending (higher volume is better)
-            tas.sort((a, b) => {
-                if (b.compliance !== a.compliance) {
-                    return b.compliance - a.compliance;
-                }
-                const aTime = a.replies > 0 ? a.avgTime : Infinity;
-                const bTime = b.replies > 0 ? b.avgTime : Infinity;
-                if (aTime !== bTime) {
-                    return aTime - bTime;
-                }
-                const aViolations = a.delayed + a.pendingBreached;
-                const bViolations = b.delayed + b.pendingBreached;
-                if (aViolations !== bViolations) {
-                    return aViolations - bViolations;
-                }
-                return b.replies - a.replies;
-            });
-
-            if (tas.length === 0) {
-                if (taLeaderboard) taLeaderboard.innerHTML = `<tr><td colspan="9" class="py-4 text-center text-white/40 italic">No TA performance data available yet.</td></tr>`;
-                if (taWorkload) taWorkload.innerHTML = `<div class="py-4 text-center text-white/40 italic text-xs">No TA workload data.</div>`;
-                if (taHighlightCards) taHighlightCards.innerHTML = `<div class="col-span-4 ultra-glass p-6 rounded-2xl text-center text-white/30 text-xs">No TA data for this filter.</div>`;
-                return;
-            }
-
-            // ---- HIGHLIGHT CARDS ----
-            if (taHighlightCards) {
-                const topPerformer = tas[0];
-                const worstPerformer = [...tas].sort((a, b) => a.compliance - b.compliance)[0];
-                const mostReplied = [...tas].sort((a, b) => b.replies - a.replies)[0];
-                const mostPending = [...tas].sort((a, b) => b.pendingForTA - a.pendingForTA)[0];
-
-                function buildHL(icon, label, name, sub1, sub2, border) {
-                    return `<div class="ultra-glass p-4 rounded-2xl border-t-2 ${border}">
-                        <div class="text-lg mb-1">${icon}</div>
-                        <p class="text-[9px] font-bold text-white/40 uppercase tracking-wider mb-1">${label}</p>
-                        <p class="text-sm font-black text-white leading-tight">${name}</p>
-                        <p class="text-[10px] text-white/50 mt-1">${sub1} <span class="text-white/30">${sub2}</span></p>
-                    </div>`;
-                }
-
-                taHighlightCards.innerHTML = [
-                    buildHL('🏆', 'Top Performer', topPerformer.name, Math.round(topPerformer.compliance) + '% SLA', '| ' + topPerformer.replies + ' replies', 'border-emerald-500/40'),
-                    buildHL('🎯', 'Most Replies', mostReplied.name, mostReplied.replies + ' queries', 'answered total', 'border-blue-500/40'),
-                    buildHL('⚠️', 'Needs Support', worstPerformer.name, Math.round(worstPerformer.compliance) + '% SLA', '| ' + worstPerformer.delayed + ' delayed', 'border-[#EE2C3C]/40'),
-                    buildHL('🕐', 'High Pending', mostPending.pendingForTA > 0 ? mostPending.name : 'None', mostPending.pendingForTA > 0 ? mostPending.pendingForTA + ' queries' : 'All clear!', mostPending.pendingForTA > 0 ? 'unanswered' : '', 'border-amber-500/40'),
-                ].join('');
-            }
-
-            // ---- VOLUME CARDS ----
-            if (taVolumeCards) {
-                const tasWT = tas.filter(t => t.durations.length > 0);
-                const fastestTA = tasWT.length > 0 ? [...tasWT].sort((a, b) => a.avgTime - b.avgTime)[0] : null;
-                const slowestTA = tasWT.length > 0 ? [...tasWT].sort((a, b) => b.avgTime - a.avgTime)[0] : null;
-                const leastReplied = [...tas].sort((a, b) => a.replies - b.replies)[0];
-                const bestOnTime = [...tas].sort((a, b) => b.onTime - a.onTime)[0];
-
-                function buildVC(icon, label, name, val, valLabel, color) {
-                    return `<div class="ultra-glass p-4 rounded-2xl">
-                        <p class="text-[9px] font-bold text-white/30 uppercase tracking-wider mb-2">${icon} ${label}</p>
-                        <p class="text-xs font-bold text-white leading-tight truncate" title="${name}">${name}</p>
-                        <p class="text-[11px] font-mono mt-1 ${color}">${val} <span class="text-white/40 text-[9px]">${valLabel}</span></p>
-                    </div>`;
-                }
-
-                taVolumeCards.innerHTML = [
-                    fastestTA ? buildVC('⚡', 'Fastest Response', fastestTA.name, fastestTA.avgTime.toFixed(1) + 'h', 'avg TAT', 'text-emerald-400') : `<div class="ultra-glass p-4 rounded-2xl text-white/30 text-xs">No timing data</div>`,
-                    slowestTA ? buildVC('🐢', 'Slowest Response', slowestTA.name, slowestTA.avgTime.toFixed(1) + 'h', 'avg TAT', 'text-red-400') : `<div class="ultra-glass p-4 rounded-2xl text-white/30 text-xs">No timing data</div>`,
-                    buildVC('📉', 'Least Replied', leastReplied.name, leastReplied.replies + '', 'queries', 'text-amber-400'),
-                    buildVC('✅', 'Most On-Time', bestOnTime.name, bestOnTime.onTime + '', 'on-time replies', 'text-blue-400'),
-                ].join('');
-            }
-
-            // ---- LEADERBOARD TABLE ----
-            tas.forEach((ta, idx) => {
-                const comp = Math.round(ta.compliance);
-                const badgeClass = comp >= 90
-                    ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                    : (comp >= 75 ? 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20' : 'text-red-400 bg-red-500/10 border-red-500/20');
-                const rankEmoji = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : (idx + 1);
-
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-white/[0.02] transition-colors border-b border-white/[0.02] text-left';
-                row.innerHTML = `
-                    <td class="py-2.5 pl-2 text-center text-xs">${rankEmoji}</td>
-                    <td class="py-2.5 font-medium text-white/95">${ta.name}</td>
-                    <td class="py-2.5 text-center text-emerald-400 font-mono font-bold">${ta.replies}</td>
-                    <td class="py-2.5 text-center font-mono ${ta.pendingForTA > 0 ? 'text-amber-400 font-bold' : 'text-white/40'}">${ta.pendingForTA}</td>
-                    <td class="py-2.5 text-center text-white/70 font-mono">${ta.avgTime.toFixed(1)}h</td>
-                    <td class="py-2.5 text-center text-white/60 font-mono">${ta.onTime}</td>
-                    <td class="py-2.5 text-center ${ta.delayed > 0 ? 'text-red-400 font-bold' : 'text-white/40'} font-mono">${ta.delayed}</td>
-                    <td class="py-2.5 text-center">
-                        <span class="px-2 py-0.5 text-[9px] font-semibold border rounded-full inline-block ${badgeClass}">${comp}%</span>
-                    </td>
-                `;
-                taLeaderboard.appendChild(row);
-            });
-
-            // ---- WORKLOAD BARS ----
-            const maxReplies = Math.max(...tas.map(t => t.replies), 1);
-            tas.forEach(ta => {
-                const capPct = Math.round((ta.replies / maxReplies) * 100);
-                let colorClass = "bg-emerald-500";
-                if (capPct > 85) colorClass = "bg-[#EE2C3C]";
-                else if (capPct > 60) colorClass = "bg-purple-500";
-
-                const wlDiv = document.createElement('div');
-                wlDiv.className = 'space-y-1';
-                wlDiv.innerHTML = `
-                    <div class="flex justify-between text-[10px]">
-                        <span class="font-medium text-white/90">${ta.name}</span>
-                        <span class="text-white/40 font-mono">${ta.replies} replied | ${ta.pendingForTA} pending | ${ta.courses.size} courses</span>
-                    </div>
-                    <div class="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
-                        <div class="${colorClass} h-full rounded-full transition-all duration-700" style="width: ${capPct}%"></div>
-                    </div>
-                `;
-                taWorkload.appendChild(wlDiv);
-            });
+             // Enrich TA list
+             const tas = Object.values(taMap).map(ta => {
+                 const avgTime = ta.durations.length > 0 ? (ta.durations.reduce((a, b) => a + b, 0) / ta.durations.length) : 0.0;
+                 const totalReplied = ta.onTime + ta.delayed;
+                 const compliance = totalReplied > 0 ? ((ta.onTime / totalReplied) * 100) : 100.0;
+                 const pendingForTA = taPendingMap[ta.name] || 0;
+                 
+                 // Calculate Combined Score (0-100)
+                 // 1. On-time response rate (compliance): 0 to 100
+                 const onTimeRateScore = compliance;
+                 // 2. Average response time: scaled linearly against a 24-hour SLA threshold: 0 to 100
+                 const responseTimeScore = Math.max(0, 100 * (1 - avgTime / 24));
+                 // 3. Absolute SLA violation count penalty: each delay is -10 points, capped
+                 const violationScore = Math.max(0, 100 - (ta.delayed * 10));
+                 
+                 // Combined Score = 40% On-time Rate + 30% Avg Response Time + 30% SLA Violation Score
+                 const combinedScore = (onTimeRateScore * 0.40) + (responseTimeScore * 0.30) + (violationScore * 0.30);
+                 
+                 let tier = "N/A", tierClass = "text-white/40";
+                 if (totalReplied > 0) {
+                     if (combinedScore >= 90) { tier = "🏆 Elite"; tierClass = "text-emerald-400 font-bold"; }
+                     else if (combinedScore >= 75) { tier = "🟢 Meets SLA"; tierClass = "text-green-300 font-medium"; }
+                     else { tier = "⚠️ Needs Support"; tierClass = "text-[#EE2C3C] font-bold"; }
+                 }
+                 return { ...ta, avgTime, compliance, combinedScore, tier, tierClass, pendingForTA };
+             });
+ 
+             tas.sort((a, b) => b.combinedScore - a.combinedScore || b.replies - a.replies);
+ 
+             if (tas.length === 0) {
+                 if (taLeaderboard) taLeaderboard.innerHTML = `<tr><td colspan="9" class="py-4 text-center text-white/40 italic">No TA performance data available yet.</td></tr>`;
+                 if (taWorkload) taWorkload.innerHTML = `<div class="py-4 text-center text-white/40 italic text-xs">No TA workload data.</div>`;
+                 if (taHighlightCards) taHighlightCards.innerHTML = `<div class="col-span-4 ultra-glass p-6 rounded-2xl text-center text-white/30 text-xs">No TA data for this filter.</div>`;
+                 return;
+             }
+ 
+             // ---- HIGHLIGHT CARDS ----
+             if (taHighlightCards) {
+                 const topPerformer = tas[0];
+                 const worstPerformer = [...tas].sort((a, b) => a.combinedScore - b.combinedScore)[0];
+                 const mostReplied = [...tas].sort((a, b) => b.replies - a.replies)[0];
+                 const mostPending = [...tas].sort((a, b) => b.pendingForTA - a.pendingForTA)[0];
+ 
+                 function buildHL(idPrefix, icon, label, name, valSuffix, subSuffix, border) {
+                     return `<div class="ultra-glass p-4 rounded-2xl border-t-2 ${border}">
+                         <div class="text-lg mb-1">${icon}</div>
+                         <p class="text-[9px] font-bold text-white/40 uppercase tracking-wider mb-1">${label}</p>
+                         <p class="text-sm font-black text-white leading-tight">${name}</p>
+                         <p class="text-[10px] text-white/50 mt-1">
+                             <span id="${idPrefix}-val">0</span>${valSuffix} <span class="text-white/30">| <span id="${idPrefix}-subval">0</span>${subSuffix}</span>
+                         </p>
+                     </div>`;
+                 }
+ 
+                 taHighlightCards.innerHTML = [
+                     buildHL('hl-top', '🏆', 'Top Performer', topPerformer.name, '% Score', ' replies', 'border-emerald-500/40'),
+                     buildHL('hl-replies', '🎯', 'Most Replies', mostReplied.name, ' queries', ' on-time', 'border-blue-500/40'),
+                     buildHL('hl-support', '⚠️', 'Needs Support', worstPerformer.name, '% Score', ' delayed', 'border-[#EE2C3C]/40'),
+                     buildHL('hl-pending', '🕐', 'High Pending', mostPending.pendingForTA > 0 ? mostPending.name : 'None', ' queries', ' replied', 'border-amber-500/40'),
+                 ].join('');
+ 
+                 animateNumber('hl-top-val', Math.round(topPerformer.combinedScore));
+                 animateNumber('hl-top-subval', topPerformer.replies);
+                 animateNumber('hl-replies-val', mostReplied.replies);
+                 animateNumber('hl-replies-subval', mostReplied.onTime);
+                 animateNumber('hl-support-val', Math.round(worstPerformer.combinedScore));
+                 animateNumber('hl-support-subval', worstPerformer.delayed);
+                 animateNumber('hl-pending-val', mostPending.pendingForTA);
+                 animateNumber('hl-pending-subval', mostPending.replies);
+             }
+ 
+             // ---- VOLUME CARDS ----
+             if (taVolumeCards) {
+                 const tasWT = tas.filter(t => t.durations.length > 0);
+                 const fastestTA = tasWT.length > 0 ? [...tasWT].sort((a, b) => a.avgTime - b.avgTime)[0] : null;
+                 const slowestTA = tasWT.length > 0 ? [...tasWT].sort((a, b) => b.avgTime - a.avgTime)[0] : null;
+                 const leastReplied = [...tas].sort((a, b) => a.replies - b.replies)[0];
+                 const bestOnTime = [...tas].sort((a, b) => b.onTime - a.onTime)[0];
+ 
+                 function buildVC(idPrefix, icon, label, name, valSuffix, color) {
+                     return `<div class="ultra-glass p-4 rounded-2xl">
+                         <p class="text-[9px] font-bold text-white/30 uppercase tracking-wider mb-2">${icon} ${label}</p>
+                         <p class="text-xs font-bold text-white leading-tight truncate" title="${name}">${name}</p>
+                         <p class="text-[11px] font-mono mt-1 ${color}"><span id="${idPrefix}-val">0</span> <span class="text-white/40 text-[9px]">${valSuffix}</span></p>
+                     </div>`;
+                 }
+ 
+                 taVolumeCards.innerHTML = [
+                     fastestTA ? buildVC('vc-fastest', '⚡', 'Fastest Response', fastestTA.name, 'avg TAT', 'text-emerald-400') : `<div class="ultra-glass p-4 rounded-2xl text-white/30 text-xs">No timing data</div>`,
+                     slowestTA ? buildVC('vc-slowest', '🐢', 'Slowest Response', slowestTA.name, 'avg TAT', 'text-red-400') : `<div class="ultra-glass p-4 rounded-2xl text-white/30 text-xs">No timing data</div>`,
+                     buildVC('vc-least', '📉', 'Least Replied', leastReplied.name, 'queries', 'text-amber-400'),
+                     buildVC('vc-most', '✅', 'Most On-Time', bestOnTime.name, 'on-time replies', 'text-blue-400'),
+                 ].join('');
+ 
+                 if (fastestTA) animateNumber('vc-fastest-val', fastestTA.avgTime, 1, '', 'h');
+                 if (slowestTA) animateNumber('vc-slowest-val', slowestTA.avgTime, 1, '', 'h');
+                 animateNumber('vc-least-val', leastReplied.replies);
+                 animateNumber('vc-most-val', bestOnTime.onTime);
+             }
+ 
+             // ---- LEADERBOARD TABLE ----
+             tas.forEach((ta, idx) => {
+                 const comp = Math.round(ta.compliance);
+                 const score = Math.round(ta.combinedScore);
+                 const badgeClass = comp >= 90
+                     ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                     : (comp >= 75 ? 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20' : 'text-red-400 bg-red-500/10 border-red-500/20');
+                 
+                 const scoreBadgeClass = score >= 90
+                     ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                     : (score >= 75 ? 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20' : 'text-red-400 bg-red-500/10 border-red-500/20');
+ 
+                 const rankEmoji = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : (idx + 1);
+ 
+                 const row = document.createElement('tr');
+                 row.className = 'hover:bg-white/[0.02] transition-colors border-b border-white/[0.02] text-left';
+                 row.innerHTML = `
+                     <td class="py-2.5 pl-2 text-center text-xs">${rankEmoji}</td>
+                     <td class="py-2.5 font-medium text-white/95">${ta.name}</td>
+                     <td class="py-2.5 text-center text-emerald-400 font-mono font-bold">${ta.replies}</td>
+                     <td class="py-2.5 text-center font-mono ${ta.pendingForTA > 0 ? 'text-amber-400 font-bold' : 'text-white/40'}">${ta.pendingForTA}</td>
+                     <td class="py-2.5 text-center text-white/70 font-mono">${ta.avgTime.toFixed(1)}h</td>
+                     <td class="py-2.5 text-center text-white/60 font-mono">${ta.onTime}</td>
+                     <td class="py-2.5 text-center ${ta.delayed > 0 ? 'text-red-400 font-bold' : 'text-white/40'} font-mono">${ta.delayed}</td>
+                     <td class="py-2.5 text-center">
+                         <span class="px-2 py-0.5 text-[9px] font-semibold border rounded-full inline-block ${badgeClass}">${comp}%</span>
+                     </td>
+                     <td class="py-2.5 text-center">
+                         <span class="px-2 py-0.5 text-[9px] font-bold border rounded-full inline-block ${scoreBadgeClass}">${score}/100</span>
+                     </td>
+                 `;
+                 taLeaderboard.appendChild(row);
+             });
+ 
+             // ---- WORKLOAD BARS ----
+             const maxReplies = Math.max(...tas.map(t => t.replies), 1);
+             tas.forEach(ta => {
+                 const capPct = Math.round((ta.replies / maxReplies) * 100);
+                 let colorClass = "bg-emerald-500";
+                 if (capPct > 85) colorClass = "bg-[#EE2C3C]";
+                 else if (capPct > 60) colorClass = "bg-purple-500";
+ 
+                 const wlDiv = document.createElement('div');
+                 wlDiv.className = 'space-y-1';
+                 wlDiv.innerHTML = `
+                     <div class="flex justify-between text-[10px]">
+                         <span class="font-medium text-white/90">${ta.name}</span>
+                         <span class="text-white/40 font-mono">${ta.replies} replied | ${ta.pendingForTA} pending | ${ta.courses.size} courses</span>
+                     </div>
+                     <div class="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
+                         <div class="${colorClass} h-full rounded-full transition-all duration-700" style="width: ${capPct}%"></div>
+                     </div>
+                 `;
+                 taWorkload.appendChild(wlDiv);
+             });
         }
         // 3. Course Risk Monitoring Rendering
         function renderCourseRisk(queries) {
@@ -1579,7 +1477,7 @@
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                label: function(context) {
+                                label: function (context) {
                                     const val = context.raw;
                                     const total = context.dataset.data.reduce((a, b) => a + b, 0);
                                     const pct = total > 0 ? Math.round((val / total) * 100) : 0;
@@ -1692,46 +1590,46 @@
                             </thead>
                             <tbody>
                                 ${learner.queries.map(q => {
-                                    const statusBadge = q.replied === 'Yes'
-                                        ? '<span class="text-emerald-400 font-semibold">&#x2713; Replied</span>'
-                                        : '<span class="text-amber-400 font-semibold">&#x29D6; Pending</span>';
+                    const statusBadge = q.replied === 'Yes'
+                        ? '<span class="text-emerald-400 font-semibold">&#x2713; Replied</span>'
+                        : '<span class="text-amber-400 font-semibold">&#x29D6; Pending</span>';
 
-                                    let elapsedHrs = 0;
-                                    if (q.replied === 'No' && q.created_dt_iso) {
-                                        const elapsedMs = Date.now() - Date.parse(q.created_dt_iso);
-                                        elapsedHrs = elapsedMs / (1000 * 60 * 60);
-                                    }
+                    let elapsedHrs = 0;
+                    if (q.replied === 'No' && q.created_dt_iso) {
+                        const elapsedMs = Date.now() - Date.parse(q.created_dt_iso);
+                        elapsedHrs = elapsedMs / (1000 * 60 * 60);
+                    }
 
-                                    let slaBadge = '';
-                                    if (q.replied === 'Yes') {
-                                        slaBadge = q.sla_status === 'On Time Response'
-                                            ? '<span class="px-1.5 py-0.5 text-[8px] text-emerald-400 border border-emerald-500/20 bg-emerald-500/10 rounded-md">On-Time</span>'
-                                            : '<span class="px-1.5 py-0.5 text-[8px] text-[#EE2C3C] border border-[#EE2C3C]/20 bg-[#EE2C3C]/10 rounded-md">Delayed</span>';
-                                    } else {
-                                        slaBadge = elapsedHrs > 24
-                                            ? '<span class="px-1.5 py-0.5 text-[8px] text-[#EE2C3C] border border-[#EE2C3C]/20 bg-[#EE2C3C]/10 rounded-md">Delayed</span>'
-                                            : '<span class="px-1.5 py-0.5 text-[8px] text-amber-400 border border-amber-500/20 bg-amber-500/10 rounded-md">Awaiting</span>';
-                                    }
+                    let slaBadge = '';
+                    if (q.replied === 'Yes') {
+                        slaBadge = q.sla_status === 'On Time Response'
+                            ? '<span class="px-1.5 py-0.5 text-[8px] text-emerald-400 border border-emerald-500/20 bg-emerald-500/10 rounded-md">On-Time</span>'
+                            : '<span class="px-1.5 py-0.5 text-[8px] text-[#EE2C3C] border border-[#EE2C3C]/20 bg-[#EE2C3C]/10 rounded-md">Delayed</span>';
+                    } else {
+                        slaBadge = elapsedHrs > 24
+                            ? '<span class="px-1.5 py-0.5 text-[8px] text-[#EE2C3C] border border-[#EE2C3C]/20 bg-[#EE2C3C]/10 rounded-md">Delayed</span>'
+                            : '<span class="px-1.5 py-0.5 text-[8px] text-amber-400 border border-amber-500/20 bg-amber-500/10 rounded-md">Awaiting</span>';
+                    }
 
-                                    const topicRaw = q.topic || '(No topic)';
-                                    const topic = topicRaw.length > 40 ? topicRaw.substring(0, 37) + '...' : topicRaw;
+                    const topicRaw = q.topic || '(No topic)';
+                    const topic = topicRaw.length > 40 ? topicRaw.substring(0, 37) + '...' : topicRaw;
 
-                                    let tat = '—';
-                                    if (q.replied === 'Yes' && typeof q.duration_hours === 'number') {
-                                        tat = q.duration_hours.toFixed(1) + 'h';
-                                    } else if (q.replied === 'No' && q.created_dt_iso && elapsedHrs >= 0) {
-                                        tat = Math.round(elapsedHrs) + 'h (Pending)';
-                                    }
+                    let tat = '—';
+                    if (q.replied === 'Yes' && typeof q.duration_hours === 'number') {
+                        tat = q.duration_hours.toFixed(1) + 'h';
+                    } else if (q.replied === 'No' && q.created_dt_iso && elapsedHrs >= 0) {
+                        tat = Math.round(elapsedHrs) + 'h (Pending)';
+                    }
 
-                                    const rowHover = 'hover:bg-white/[0.03]';
-                                    return '<tr class="border-b border-white/[0.03] ' + rowHover + ' transition-colors">' +
-                                        '<td class="py-2 px-3 text-white/75" title="' + (q.topic || '') + '">' + topic + '</td>' +
-                                        '<td class="py-2 text-white/40 truncate max-w-[120px]" title="' + (q.course_name || '') + '">' + (q.course_name || 'N/A').substring(0, 20) + '</td>' +
-                                        '<td class="py-2 text-center">' + statusBadge + '</td>' +
-                                        '<td class="py-2 text-center text-white/50 font-mono">' + tat + '</td>' +
-                                        '<td class="py-2 text-center">' + slaBadge + '</td>' +
-                                    '</tr>';
-                                }).join('')}
+                    const rowHover = 'hover:bg-white/[0.03]';
+                    return '<tr class="border-b border-white/[0.03] ' + rowHover + ' transition-colors">' +
+                        '<td class="py-2 px-3 text-white/75" title="' + (q.topic || '') + '">' + topic + '</td>' +
+                        '<td class="py-2 text-white/40 truncate max-w-[120px]" title="' + (q.course_name || '') + '">' + (q.course_name || 'N/A').substring(0, 20) + '</td>' +
+                        '<td class="py-2 text-center">' + statusBadge + '</td>' +
+                        '<td class="py-2 text-center text-white/50 font-mono">' + tat + '</td>' +
+                        '<td class="py-2 text-center">' + slaBadge + '</td>' +
+                        '</tr>';
+                }).join('')}
                             </tbody>
                         </table>
                     </div>
@@ -1747,7 +1645,7 @@
         }
 
         // Click outside to dismiss search results
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', function (e) {
             const searchWrap = document.getElementById('learner-search-wrap');
             const resultsEl = document.getElementById('learner-search-results');
             if (searchWrap && resultsEl && !searchWrap.contains(e.target) && !resultsEl.contains(e.target)) {
@@ -1760,7 +1658,7 @@
             const courseQueries = window.allQueries.filter(q => q.course_name === courseName);
 
             document.getElementById('course-modal-title').innerText = courseName;
-            
+
             const sheetId = window.spreadsheetId || '1GEzRkk6SArh_TfvCXw_SgWLyveQLFUMgHDjJIQo1wA4';
             const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
             document.getElementById('course-modal-sheet-link').href = sheetUrl;
@@ -1835,7 +1733,7 @@
         }
 
         // Existing Audit Form Logic
-        document.getElementById('tracker-form').addEventListener('submit', function(e) {
+        document.getElementById('tracker-form').addEventListener('submit', function (e) {
 
             e.preventDefault();
             const course_codes = document.getElementById('course_codes').value;
@@ -1855,7 +1753,7 @@
             btn.classList.remove('bg-white/10', 'hover:bg-white/15', 'text-white', 'shadow-lg');
             btnText.innerHTML = 'Audit in Progress...';
             btnIcon.classList.add('hidden');
-            
+
             // Show terminal
             progContainer.classList.remove('hidden');
             setTimeout(() => {
@@ -1867,8 +1765,8 @@
 
             fetch('/start', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({course_codes: course_codes})
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ course_codes: course_codes })
             }).then(res => res.json()).then(data => {
                 if (data.error) {
                     alert(data.error);
@@ -1876,16 +1774,16 @@
                     return;
                 }
                 const taskId = data.task_id;
-                
+
                 // Poll server for live updates from Python script
                 const poll = setInterval(() => {
                     fetch('/status/' + taskId).then(r => r.json()).then(sData => {
                         const status = sData.status;
-                        
+
                         if (status === 'COMPLETE') {
                             clearInterval(poll);
                             progText.innerHTML = '<span class="text-[#4ade80]">✔ Audit Completed! Downloading Excel File & Syncing Database...</span>';
-                            
+
                             // Trigger background dashboard cache updates
                             setTimeout(() => {
                                 window.location.href = '/download/' + taskId;
@@ -1915,111 +1813,59 @@
                 btn.classList.add('bg-white/10', 'hover:bg-white/15', 'text-white', 'shadow-lg');
                 btnText.innerHTML = 'Download Audit Report';
                 btnIcon.classList.remove('hidden');
-                
+
                 // Hide terminal
                 progContainer.classList.remove('opacity-100', 'translate-y-0');
                 progContainer.classList.add('opacity-0', 'translate-y-4');
-                setTimeout(() => { progContainer.classList.add('hidden'); }, 500);
             }
         });
 
-        function animateNumberValue(id, end, duration = 800) {
-            const obj = document.getElementById(id);
-            if (!obj) return;
-            const isFloat = id === 'stat-tat';
-            const currentText = obj.innerText.replace('%', '').trim();
-            const startVal = (currentText === '--' || !currentText) ? 0 : parseFloat(currentText);
-            const start = isNaN(startVal) ? 0 : startVal;
-            const endVal = parseFloat(end);
-            const endValue = isNaN(endVal) ? 0 : endVal;
+        function animateNumber(elementId, targetValue, decimals = 0, prefix = '', suffix = '', duration = 1000) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
             
-            if (start === endValue) {
-                obj.innerText = isFloat ? endValue.toFixed(1) : Math.round(endValue);
-                if (id === 'stat-compliance-percent') {
-                    const centerPct = document.getElementById('doughnut-center-percent');
-                    if (centerPct) centerPct.innerText = Math.round(endValue) + "%";
+            const prevValAttr = el.getAttribute('data-value');
+            const startValue = prevValAttr ? parseFloat(prevValAttr) : 0;
+            
+            el.setAttribute('data-value', targetValue);
+            
+            if (startValue === targetValue && prevValAttr !== null) {
+                if (decimals > 0) {
+                    el.innerText = prefix + targetValue.toFixed(decimals) + suffix;
+                } else {
+                    el.innerText = prefix + Math.round(targetValue) + suffix;
                 }
                 return;
             }
             
-            const range = endValue - start;
             const startTime = performance.now();
             
-            function update(currentTime) {
+            function step(currentTime) {
                 const elapsed = currentTime - startTime;
                 const progress = Math.min(elapsed / duration, 1);
-                const easeProgress = 1 - Math.pow(1 - progress, 3); // ease-out cubic
-                const val = start + range * easeProgress;
+                const ease = 1 - Math.pow(1 - progress, 3); // cubic ease-out
+                const current = ease * (targetValue - startValue) + startValue;
                 
-                if (isFloat) {
-                    obj.innerText = val.toFixed(1);
+                if (decimals > 0) {
+                    el.innerText = prefix + current.toFixed(decimals) + suffix;
                 } else {
-                    obj.innerText = Math.round(val);
-                }
-                
-                if (id === 'stat-compliance-percent') {
-                    const centerPct = document.getElementById('doughnut-center-percent');
-                    if (centerPct) centerPct.innerText = Math.round(val) + "%";
+                    el.innerText = prefix + Math.round(current) + suffix;
                 }
                 
                 if (progress < 1) {
-                    requestAnimationFrame(update);
+                    requestAnimationFrame(step);
                 } else {
-                    obj.innerText = isFloat ? endValue.toFixed(1) : Math.round(endValue);
-                    if (id === 'stat-compliance-percent') {
-                        const centerPct = document.getElementById('doughnut-center-percent');
-                        if (centerPct) centerPct.innerText = Math.round(endValue) + "%";
+                    if (decimals > 0) {
+                        el.innerText = prefix + targetValue.toFixed(decimals) + suffix;
+                    } else {
+                        el.innerText = prefix + Math.round(targetValue) + suffix;
                     }
                 }
             }
             
-            requestAnimationFrame(update);
+            requestAnimationFrame(step);
         }
-
-        function initCardGlowEffects() {
-            const cards = document.querySelectorAll('.ultra-glass');
-            cards.forEach(card => {
-                if (card.dataset.glowInitialized === "true") return;
-                card.dataset.glowInitialized = "true";
-                
-                if (!card.querySelector('.edge-light')) {
-                    const edgeLight = document.createElement('span');
-                    edgeLight.className = 'edge-light';
-                    card.appendChild(edgeLight);
-                }
-                
-                card.addEventListener('pointermove', (e) => {
-                    const rect = card.getBoundingClientRect();
-                    const x = e.clientX - rect.left;
-                    const y = e.clientY - rect.top;
-                    
-                    const width = rect.width;
-                    const height = rect.height;
-                    const cx = width / 2;
-                    const cy = height / 2;
-                    const dx = x - cx;
-                    const dy = y - cy;
-                    
-                    let kx = Infinity, ky = Infinity;
-                    if (dx !== 0) kx = cx / Math.abs(dx);
-                    if (dy !== 0) ky = cy / Math.abs(dy);
-                    const edge = Math.min(Math.max(1 / Math.min(kx, ky), 0), 1);
-                    
-                    let degrees = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
-                    if (degrees < 0) degrees += 360;
-                    
-                    card.style.setProperty('--edge-proximity', (edge * 100).toFixed(3));
-                    card.style.setProperty('--cursor-angle', `${degrees.toFixed(3)}deg`);
-                });
-                
-                card.addEventListener('pointerleave', () => {
-                    card.style.setProperty('--edge-proximity', '0');
-                });
-            });
-        }
-
-        // Initialize glows on initial DOM load
-        document.addEventListener('DOMContentLoaded', initCardGlowEffects);
     </script>
 </body>
+
 </html>
