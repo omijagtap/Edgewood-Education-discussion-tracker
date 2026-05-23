@@ -439,6 +439,18 @@ def get_dashboard_data():
                 created_dt = parse_date_string(created_on)
                 created_dt_iso = created_dt.isoformat() if created_dt else None
 
+                # Validate first responder using TA_EMAILS_SET
+                import Disussion_Automate as da
+                r_emails = [e.strip().lower() for e in replied_by_email.split(",") if e.strip()]
+                ta_emails_in_row = [e for e in r_emails if e in da.TA_EMAILS_SET]
+                
+                if not ta_emails_in_row:
+                    first_responder = ""
+                    if replied == "Yes":
+                        replied = "No"
+                        duration_val = None
+                        sla_status = "Pending Response"
+
                 query_obj = {
                     "cohort": cohort,
                     "course_name": course_name,

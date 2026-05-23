@@ -543,12 +543,20 @@
                 <div class="ultra-glass p-5 rounded-3xl flex flex-col">
                     <div class="flex items-center gap-2 mb-4 pl-1">
                         <div class="w-1 h-3.5 bg-emerald-500 rounded-full"></div>
-                        <h4 class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Full TA Leaderboard
-                        </h4>
-                        <span class="ml-auto text-[9px] text-white/30 font-light" id="leaderboard-sort-label">Sorted by Combined Score &darr;</span>
+                        <h4 class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Full TA Leaderboard</h4>
+                        <div class="ml-auto flex items-center gap-2">
+                            <span class="text-[9px] text-white/40 font-semibold uppercase tracking-wider">Sort:</span>
+                            <select id="leaderboard-sort-select" onchange="handleSortSelectChange(this.value)" class="bg-[rgba(0,0,0,0.3)] border border-white/[0.08] text-white text-[11px] rounded-xl px-2.5 py-1 focus:outline-none transition-all cursor-pointer font-medium hover:border-white/20">
+                                <option value="delayed-asc" class="bg-[#050505] text-white">SLA Violations: Low to High (Default)</option>
+                                <option value="avgTime-asc" class="bg-[#050505] text-white">Avg Response: Best Hours (Low to High)</option>
+                                <option value="avgTime-desc" class="bg-[#050505] text-white">Avg Response: Worst Hours (High to Low)</option>
+                                <option value="replies-desc" class="bg-[#050505] text-white">Total Replied: High to Low</option>
+                                <option value="compliance-desc" class="bg-[#050505] text-white">SLA Compliance %: High to Low</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="overflow-x-auto pr-1 custom-scrollbar">
-                        <table class="w-full text-left text-[11px] border-collapse min-w-[680px]">
+                        <table class="w-full text-left text-[11px] border-collapse min-w-[600px]">
                             <thead>
                                 <tr class="text-white/40 border-b border-white/[0.08] select-none">
                                     <th class="py-2 pl-2 font-medium uppercase tracking-wider w-6">#</th>
@@ -558,7 +566,6 @@
                                     <th class="py-2 font-medium uppercase tracking-wider text-center cursor-pointer hover:text-white transition-colors" onclick="changeSort('onTime')">On-Time<span id="sort-arrow-onTime"></span></th>
                                     <th class="py-2 font-medium uppercase tracking-wider text-center cursor-pointer hover:text-white transition-colors" onclick="changeSort('delayed')">Delayed<span id="sort-arrow-delayed"></span></th>
                                     <th class="py-2 font-medium uppercase tracking-wider text-center cursor-pointer hover:text-white transition-colors" onclick="changeSort('compliance')">SLA %<span id="sort-arrow-compliance"></span></th>
-                                    <th class="py-2 font-medium uppercase tracking-wider text-center cursor-pointer hover:text-white transition-colors" onclick="changeSort('combinedScore')">Combined Score<span id="sort-arrow-combinedScore"></span></th>
                                 </tr>
                             </thead>
                             <tbody id="ta-leaderboard-body" class="divide-y divide-white/[0.02]"></tbody>
@@ -912,22 +919,27 @@
             renderLeaderboardRows(window.lastCalculatedTAs);
         }
 
+        function handleSortSelectChange(val) {
+            const parts = val.split('-');
+            window.currentSortKey = parts[0];
+            window.currentSortOrder = parts[1];
+            renderLeaderboardRows(window.lastCalculatedTAs);
+        }
+
         function updateSortArrows() {
-            const keys = ['name', 'replies', 'avgTime', 'onTime', 'delayed', 'compliance', 'combinedScore'];
+            const keys = ['name', 'replies', 'avgTime', 'onTime', 'delayed', 'compliance'];
             const labels = {
                 'name': 'Name',
                 'replies': 'Total Replied',
                 'avgTime': 'Avg Response Time',
                 'onTime': 'On-Time Responses',
                 'delayed': 'SLA Violations',
-                'compliance': 'SLA Compliance %',
-                'combinedScore': 'Combined Score'
+                'compliance': 'SLA Compliance %'
             };
 
-            const labelEl = document.getElementById('leaderboard-sort-label');
-            if (labelEl) {
-                const dirArrow = window.currentSortOrder === 'asc' ? '↑' : '↓';
-                labelEl.innerText = `Sorted by ${labels[window.currentSortKey]} ${dirArrow}`;
+            const selectEl = document.getElementById('leaderboard-sort-select');
+            if (selectEl) {
+                selectEl.value = `${window.currentSortKey}-${window.currentSortOrder}`;
             }
 
             keys.forEach(k => {
@@ -977,14 +989,9 @@
 
             tas.forEach((ta, idx) => {
                 const comp = Math.round(ta.compliance);
-                const score = Math.round(ta.combinedScore);
                 const badgeClass = comp >= 90
                     ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
                     : (comp >= 75 ? 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20' : 'text-red-400 bg-red-500/10 border-red-500/20');
-                
-                const scoreBadgeClass = score >= 90
-                    ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                    : (score >= 75 ? 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20' : 'text-red-400 bg-red-500/10 border-red-500/20');
 
                 const rankEmoji = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : (idx + 1);
 
@@ -999,9 +1006,6 @@
                     <td class="py-2.5 text-center ${ta.delayed > 0 ? 'text-red-400 font-bold' : 'text-white/40'} font-mono">${ta.delayed}</td>
                     <td class="py-2.5 text-center">
                         <span class="px-2 py-0.5 text-[9px] font-semibold border rounded-full inline-block ${badgeClass}">${comp}%</span>
-                    </td>
-                    <td class="py-2.5 text-center">
-                        <span class="px-2 py-0.5 text-[9px] font-bold border rounded-full inline-block ${scoreBadgeClass}">${score}/100</span>
                     </td>
                 `;
                 taLeaderboard.appendChild(row);
@@ -1050,29 +1054,11 @@
                  const totalReplied = ta.onTime + ta.delayed;
                  const compliance = totalReplied > 0 ? ((ta.onTime / totalReplied) * 100) : 100.0;
                  const pendingForTA = taPendingMap[ta.name] || 0;
-                 
-                 // Calculate Combined Score (0-100)
-                 // 1. On-time response rate (compliance): 0 to 100
-                 const onTimeRateScore = compliance;
-                 // 2. Average response time: scaled linearly against a 24-hour SLA threshold: 0 to 100
-                 const responseTimeScore = Math.max(0, 100 * (1 - avgTime / 24));
-                 // 3. Absolute SLA violation count penalty: each delay is -10 points, capped
-                 const violationScore = Math.max(0, 100 - (ta.delayed * 10));
-                 
-                 // Combined Score = 40% On-time Rate + 30% Avg Response Time + 30% SLA Violation Score
-                 const combinedScore = (onTimeRateScore * 0.40) + (responseTimeScore * 0.30) + (violationScore * 0.30);
-                 
-                 let tier = "N/A", tierClass = "text-white/40";
-                 if (totalReplied > 0) {
-                     if (combinedScore >= 90) { tier = "🏆 Elite"; tierClass = "text-emerald-400 font-bold"; }
-                     else if (combinedScore >= 75) { tier = "🟢 Meets SLA"; tierClass = "text-green-300 font-medium"; }
-                     else { tier = "⚠️ Needs Support"; tierClass = "text-[#EE2C3C] font-bold"; }
-                 }
-                 return { ...ta, avgTime, compliance, combinedScore, tier, tierClass, pendingForTA };
+                 return { ...ta, avgTime, compliance, pendingForTA };
              });
  
              if (tas.length === 0) {
-                 if (taLeaderboard) taLeaderboard.innerHTML = `<tr><td colspan="8" class="py-4 text-center text-white/40 italic">No TA performance data available yet.</td></tr>`;
+                 if (taLeaderboard) taLeaderboard.innerHTML = `<tr><td colspan="7" class="py-4 text-center text-white/40 italic">No TA performance data available yet.</td></tr>`;
                  if (taWorkload) taWorkload.innerHTML = `<div class="py-4 text-center text-white/40 italic text-xs">No TA workload data.</div>`;
                  if (taHighlightCards) taHighlightCards.innerHTML = `<div class="col-span-4 ultra-glass p-6 rounded-2xl text-center text-white/30 text-xs">No TA data for this filter.</div>`;
                  return;
@@ -1080,10 +1066,22 @@
  
              // ---- HIGHLIGHT CARDS ----
              if (taHighlightCards) {
-                 // Sort by score for highlighting
-                 const sortedForHL = [...tas].sort((a, b) => b.combinedScore - a.combinedScore || b.replies - a.replies);
-                 const topPerformer = sortedForHL[0];
-                 const worstPerformer = [...sortedForHL].reverse()[0];
+                 // Sort for Top Performer: lowest delayed, then lowest avgTime, then highest replies
+                 const sortedForTop = [...tas].sort((a, b) => {
+                     if (a.delayed !== b.delayed) return a.delayed - b.delayed;
+                     if (a.avgTime !== b.avgTime) return a.avgTime - b.avgTime;
+                     return b.replies - a.replies;
+                 });
+                 const topPerformer = sortedForTop[0];
+
+                 // Sort for Needs Support: highest delayed, then highest avgTime, then lowest replies
+                 const sortedForSupport = [...tas].sort((a, b) => {
+                     if (a.delayed !== b.delayed) return b.delayed - a.delayed;
+                     if (a.avgTime !== b.avgTime) return b.avgTime - a.avgTime;
+                     return a.replies - b.replies;
+                 });
+                 const worstPerformer = sortedForSupport[0];
+
                  const mostReplied = [...tas].sort((a, b) => b.replies - a.replies)[0];
                  const mostPending = [...tas].sort((a, b) => b.pendingForTA - a.pendingForTA)[0];
  
@@ -1099,18 +1097,18 @@
                  }
  
                  taHighlightCards.innerHTML = [
-                     buildHL('hl-top', '🏆', 'Top Performer', topPerformer.name, '% Score', ' replies', 'border-emerald-500/40'),
+                     buildHL('hl-top', '🏆', 'Top Performer', topPerformer.name, '% SLA', ' replies', 'border-emerald-500/40'),
                      buildHL('hl-replies', '🎯', 'Most Replies', mostReplied.name, ' queries', ' on-time', 'border-blue-500/40'),
-                     buildHL('hl-support', '⚠️', 'Needs Support', worstPerformer.name, '% Score', ' delayed', 'border-[#EE2C3C]/40'),
+                     buildHL('hl-support', '⚠️', 'Needs Support', worstPerformer.name, ' delayed', 'h avg', 'border-[#EE2C3C]/40'),
                      buildHL('hl-pending', '🕐', 'High Pending', mostPending.pendingForTA > 0 ? mostPending.name : 'None', ' queries', ' replied', 'border-amber-500/40'),
                  ].join('');
  
-                 animateNumber('hl-top-val', Math.round(topPerformer.combinedScore));
+                 animateNumber('hl-top-val', Math.round(topPerformer.compliance));
                  animateNumber('hl-top-subval', topPerformer.replies);
                  animateNumber('hl-replies-val', mostReplied.replies);
                  animateNumber('hl-replies-subval', mostReplied.onTime);
-                 animateNumber('hl-support-val', Math.round(worstPerformer.combinedScore));
-                 animateNumber('hl-support-subval', worstPerformer.delayed);
+                 animateNumber('hl-support-val', worstPerformer.delayed);
+                 animateNumber('hl-support-subval', Math.round(worstPerformer.avgTime));
                  animateNumber('hl-pending-val', mostPending.pendingForTA);
                  animateNumber('hl-pending-subval', mostPending.replies);
              }
