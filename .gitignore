@@ -14,3 +14,4 @@ linen-rex-*.json
 *credentials*.json
 *creds*.json
 *key*.json
+render_env.txt
