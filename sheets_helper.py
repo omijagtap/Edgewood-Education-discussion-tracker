@@ -15,7 +15,7 @@ except ImportError:
     pass
 
 # Config
-SPREADSHEET_ID = os.getenv("GOOGLE_SHEET_ID", "1GEzRkk6SArh_TfvCXw_SgWLyveQLFUMgHDjJIQo1wA4")
+SPREADSHEET_ID = os.getenv("GOOGLE_SHEET_ID", "1gbX-PyfeWBXI18dS8r4XneJCpG5mWkADfWMDhd6UIPM")
 GOOGLE_CREDS_FILE = os.getenv("GOOGLE_CREDS_FILE", "linen-rex-436411-r4-9bba0db0c720.json")
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 

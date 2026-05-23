@@ -62,9 +62,9 @@ def run_audit(task_id, course_codes_input):
         processed_count = 0
 
         for sis_id in sis_ids:
-            # Business Tracker specific filter
-            if not sis_id.upper().startswith("BUS"):
-                task_progress[task_id] = f"Skipping {sis_id} (Not a Business course)."
+            # Education Tracker specific filter
+            if not sis_id.upper().startswith("EDU"):
+                task_progress[task_id] = f"Skipping {sis_id} (Not an Education course)."
                 time.sleep(1)
                 continue
 
