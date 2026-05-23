@@ -7,6 +7,7 @@ import builtins
 import openpyxl
 from flask import Flask, render_template, request, send_file, jsonify, redirect, url_for
 import Disussion_Automate as da
+import sheets_helper
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'edgewood_secret_key_123')
@@ -89,7 +90,15 @@ def run_audit(task_id, course_codes_input):
 
             task_progress[task_id] = "Compiling Data into Excel Structure..."
             da.build_excel_sheet(wb, flat_rows, sis_id, course_name)
+            try:
+                task_progress[task_id] = "Syncing Report to Google Sheet Database..."
+                sheets_helper.push_to_google_sheet(flat_rows, sis_id, course_name)
+                # Bust the dashboard cache so next fetch reflects new audit data
+                sheets_helper._dashboard_cache["data"] = None
+            except Exception as e:
+                original_print(f"Error pushing to Google Sheets: {e}")
             processed_count += 1
+
 
         if processed_count == 0:
             task_progress[task_id] = "ERROR: No student discussions found in any course."
@@ -151,6 +160,15 @@ def download(task_id):
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
     return "File not found or expired.", 404
+
+@app.route('/api/dashboard')
+def api_dashboard():
+    try:
+        data = sheets_helper.get_dashboard_data()
+        return jsonify(data)
+    except Exception as e:
+        original_print(f"Dashboard data fetch failed: {e}")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.getenv("PORT", 5000))

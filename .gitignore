@@ -7,3 +7,10 @@ __pycache__/
 .vscode/
 .idea/
 *.xlsx
+
+# Google Cloud Service Account credentials (avoid leaking to Github)
+linen-rex-*.json
+*-*.json
+*credentials*.json
+*creds*.json
+*key*.json

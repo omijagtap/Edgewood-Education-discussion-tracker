@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edgewood Discussion Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
@@ -60,13 +61,19 @@
           -webkit-background-clip: text;
           background-clip: text;
           -webkit-text-fill-color: transparent;
-          animation: shimmer 10s ease-in-out infinite;
+          animation: shimmer 30s ease-in-out infinite;
       }
 
       /* Focus transitions for input */
       .input-glow:focus {
-          box-shadow: 0 0 0 2px rgba(238, 44, 60, 0.2), 0 0 20px rgba(238, 44, 60, 0.1);
-          border-color: rgba(238, 44, 60, 0.5);
+          box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1), 0 0 20px rgba(255, 255, 255, 0.05);
+          border-color: rgba(255, 255, 255, 0.25);
+          background-color: rgba(255, 255, 255, 0.05);
+      }
+
+      #learner-search-input:focus {
+          box-shadow: none !important;
+          outline: none !important;
       }
       
       .font-mono {
@@ -74,23 +81,35 @@
       }
     </style>
 </head>
-<body class="grid-bg min-h-screen relative overflow-hidden flex items-center justify-center">
+<body class="grid-bg min-h-screen relative overflow-y-auto flex flex-col justify-center items-center">
     
     <!-- Ultra subtle cool blue ambient glow (not red) -->
     <div class="ambient-glow" style="top: -10%; right: -10%; width: 500px; height: 500px; opacity: 0.04; background: #3b82f6;"></div>
     
     <div class="relative z-10 w-full px-4 py-8 max-w-screen-2xl mx-auto">
         
-        <!-- Header / Logo -->
-        <div class="flex items-center mb-6 pl-2">
+        <!-- Header / Logo & Navigation -->
+        <div class="flex flex-row justify-between items-center w-full mb-8 pl-2 pr-2">
             <div class="flex items-center drop-shadow-md">
                 <span class="text-2xl font-medium text-[#EE2C3C] tracking-tight">upGrad</span>
                 <span class="text-xl font-thin text-white/60 tracking-wide ml-2">Automation</span>
             </div>
+            
+            <!-- Tab Switcher Navigation (matching user image layout) -->
+            <div class="flex bg-[rgba(0,0,0,0.4)] border border-[rgba(255,255,255,0.08)] rounded-full p-1 shadow-inner backdrop-blur-md">
+                <button id="nav-audit" class="px-5 py-2 text-xs font-semibold text-white bg-[rgba(255,255,255,0.08)] border border-[rgba(255,255,255,0.05)] rounded-full transition-all shadow-sm focus:outline-none">
+                    Audit Canvas
+                </button>
+                <button id="nav-dashboard" class="px-5 py-2 text-xs font-semibold text-white/50 hover:text-white rounded-full transition-all focus:outline-none ml-1">
+                    Dashboard
+                </button>
+            </div>
         </div>
 
-        <!-- Single Wide Card Section -->
-        <div class="ultra-glass p-8 py-12 lg:p-14 lg:px-16 rounded-[2.5rem] card-shine flex flex-col lg:flex-row gap-10 lg:gap-16 relative text-left">
+        <!-- Audit Container Section -->
+        <div id="audit-view" class="transition-all duration-500 opacity-100 translate-y-0">
+            <!-- Single Wide Card Section -->
+            <div class="ultra-glass p-8 py-12 lg:p-14 lg:px-16 rounded-[2.5rem] card-shine flex flex-col lg:flex-row gap-10 lg:gap-16 relative text-left">
             
             <!-- Left Side: Description -->
             <div class="lg:w-1/2 flex flex-col justify-center relative z-10">
@@ -173,10 +192,1398 @@
                 </form>
             </div>
         </div>
+        </div> <!-- End of audit-view -->
+
+        <!-- Dashboard Section -->
+        <div id="dashboard-view" class="hidden transition-all duration-500 opacity-0 translate-y-4 space-y-5">
+
+            <!-- Dashboard Header Row + Persistent Learner Search Bar -->
+            <div class="space-y-3">
+                <!-- Title + Sync Row -->
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pl-1 pr-1">
+                    <div>
+                        <h2 class="text-xl lg:text-2xl font-extrabold silver-shimmer tracking-tight">Executive SLA Dashboard</h2>
+                        <p class="text-white/40 text-[10px] font-light mt-0.5">Real-time platform support intelligence &mdash; auto-synced every 10 seconds.</p>
+                    </div>
+                    <div class="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/[0.08] text-white text-xs font-medium rounded-xl flex-shrink-0">
+                        <div id="sync-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                        <span class="text-[10px] text-white/70 font-mono" id="sync-status-text">Synced</span>
+                    </div>
+                </div>
+
+                <!-- PREMIUM Learner Search Bar (always visible at top) -->
+                <div class="relative">
+                    <div id="learner-search-wrap" class="flex gap-2 items-center p-1 bg-white/[0.03] border border-white/[0.08] rounded-2xl transition-all duration-300 hover:border-white/20 focus-within:border-white/30 focus-within:bg-white/[0.06]">
+                        <!-- Search Icon -->
+                        <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-white/[0.04] flex-shrink-0 ml-0.5">
+                            <svg class="w-3.5 h-3.5 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        </div>
+                        <!-- Input -->
+                        <input id="learner-search-input"
+                            type="text"
+                            placeholder="Search learner by name, email ID, or student ID..."
+                            class="flex-grow bg-transparent text-white text-xs placeholder-white/25 focus:outline-none py-2 pr-2 font-medium"
+                            oninput="runLearnerSearch()"
+                            onfocus="showLearnerResults()"
+                            autocomplete="off"
+                        />
+                        <!-- Clear button -->
+                        <button onclick="clearLearnerSearch()" class="flex-shrink-0 px-3 py-1.5 text-[10px] font-semibold text-white/40 hover:text-white hover:bg-white/[0.08] rounded-xl transition-all mr-0.5">Clear</button>
+                    </div>
+
+                    <!-- Search Results Dropdown (shows when typing) -->
+                    <div id="learner-search-results" class="hidden mt-2 space-y-3 max-h-[480px] overflow-y-auto custom-scrollbar pr-1">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Sub-Navigation (Overview + TA Performance) -->
+            <div class="flex items-center gap-1 p-1 bg-white/[0.03] border border-white/[0.06] rounded-2xl w-fit">
+                <button id="dash-tab-overview" onclick="switchDashTab('overview')" class="px-4 py-1.5 text-[11px] font-semibold rounded-xl transition-all bg-white/[0.08] border border-white/[0.06] text-white">&#x1F4CA; Overview</button>
+                <button id="dash-tab-ta" onclick="switchDashTab('ta')" class="px-4 py-1.5 text-[11px] font-semibold rounded-xl transition-all text-white/50 hover:text-white">&#x1F3C5; TA Performance</button>
+            </div>
+
+            <!-- Loading Skeleton -->
+            <div id="dashboard-loading" class="space-y-6">
+                <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4">
+                    <div class="ultra-glass p-4 rounded-2xl animate-pulse h-20"></div>
+                    <div class="ultra-glass p-4 rounded-2xl animate-pulse h-20"></div>
+                    <div class="ultra-glass p-4 rounded-2xl animate-pulse h-20"></div>
+                    <div class="ultra-glass p-4 rounded-2xl animate-pulse h-20"></div>
+                    <div class="ultra-glass p-4 rounded-2xl animate-pulse h-20"></div>
+                    <div class="ultra-glass p-4 rounded-2xl animate-pulse h-20"></div>
+                </div>
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    <div class="ultra-glass p-6 rounded-[2rem] animate-pulse h-64"></div>
+                    <div class="ultra-glass p-6 rounded-[2rem] animate-pulse h-64"></div>
+                </div>
+            </div>
+
+            <!-- Error State -->
+            <div id="dashboard-error" class="hidden ultra-glass p-10 rounded-[2rem] text-center max-w-md mx-auto flex flex-col items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 text-lg font-bold">!</div>
+                <h3 class="text-sm font-semibold text-white/90">Sync Failed</h3>
+                <p id="dashboard-error-msg" class="text-white/50 text-[11px] leading-relaxed max-w-sm">Failed to connect to Google Sheets database or retrieve metrics.</p>
+                <button id="btn-retry-dashboard" class="mt-1 px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/30 text-white text-[11px] font-semibold rounded-xl transition-all">Retry Sync</button>
+            </div>
+
+            <!-- ================================================================ -->
+            <!-- TAB 1: OVERVIEW -->
+            <!-- ================================================================ -->
+            <div id="dash-panel-overview" class="space-y-5">
+
+                <!-- Filters Row -->
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="flex items-center gap-1.5 bg-white/[0.02] border border-white/[0.08] rounded-xl px-2.5 py-1.5">
+                        <span class="text-[9px] font-semibold text-white/40 uppercase tracking-wider">Cohort:</span>
+                        <select id="filter-cohort" class="bg-transparent text-white text-xs font-semibold focus:outline-none cursor-pointer">
+                            <option value="All" class="bg-[#050505] text-white">All Cohorts</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-1.5 bg-white/[0.02] border border-white/[0.08] rounded-xl px-2.5 py-1.5">
+                        <span class="text-[9px] font-semibold text-white/40 uppercase tracking-wider">Course:</span>
+                        <select id="filter-course" class="bg-transparent text-white text-xs font-semibold focus:outline-none cursor-pointer max-w-[160px] truncate">
+                            <option value="All" class="bg-[#050505] text-white">All Courses</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- KPI Cards -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
+                    <div class="ultra-glass p-4 rounded-2xl group hover:border-white/[0.08] transition-all">
+                        <span class="text-[9px] font-bold text-white/40 uppercase tracking-wider block mb-1">Total Courses</span>
+                        <div class="flex items-baseline gap-1">
+                            <span id="stat-courses" class="text-xl font-black text-white tracking-tight">--</span>
+                            <span class="text-[9px] text-white/30">active</span>
+                        </div>
+                    </div>
+                    <div class="ultra-glass p-4 rounded-2xl group hover:border-white/[0.08] transition-all">
+                        <span class="text-[9px] font-bold text-white/40 uppercase tracking-wider block mb-1">Total Queries</span>
+                        <div class="flex items-baseline gap-1">
+                            <span id="stat-discussions" class="text-xl font-black text-white tracking-tight">--</span>
+                            <span class="text-[9px] text-white/30">raised</span>
+                        </div>
+                    </div>
+                    <div class="ultra-glass p-4 rounded-2xl group hover:border-white/[0.08] transition-all">
+                        <span class="text-[9px] font-bold text-white/40 uppercase tracking-wider block mb-1">Total Replied</span>
+                        <div class="flex items-baseline gap-1">
+                            <span id="stat-replied" class="text-xl font-black text-emerald-400 tracking-tight">--</span>
+                            <span class="text-[9px] text-emerald-400/50">done</span>
+                        </div>
+                    </div>
+                    <div class="ultra-glass p-4 rounded-2xl group hover:border-white/[0.08] transition-all">
+                        <span class="text-[9px] font-bold text-white/40 uppercase tracking-wider block mb-1">Avg Response TAT</span>
+                        <div class="flex items-baseline gap-1">
+                            <span id="stat-tat" class="text-xl font-black text-white tracking-tight">--</span>
+                            <span class="text-[9px] text-white/40 font-semibold">hrs</span>
+                        </div>
+                    </div>
+                    <div class="ultra-glass p-4 rounded-2xl group hover:border-white/[0.08] transition-all">
+                        <span class="text-[9px] font-bold text-white/40 uppercase tracking-wider block mb-1">Pending Responses</span>
+                        <div class="flex items-baseline gap-1">
+                            <span id="stat-pending" class="text-xl font-black text-amber-400 tracking-tight">--</span>
+                            <span class="text-[9px] text-amber-400/50">unresolved</span>
+                        </div>
+                    </div>
+                    <div class="ultra-glass p-4 rounded-2xl group hover:border-white/[0.08] transition-all">
+                        <span class="text-[9px] font-bold text-white/40 uppercase tracking-wider block mb-1">SLA Compliance</span>
+                        <div class="flex items-baseline gap-1">
+                            <span id="stat-compliance-percent" class="text-xl font-black text-white tracking-tight">--</span>
+                            <span class="text-[9px] text-white/40 font-semibold">%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Dashboard Layout Grid (Left content column + Right sidebar column) -->
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
+                    
+                    <!-- Left Column: Primary Tables (col-span-2) -->
+                    <div class="xl:col-span-2 space-y-5">
+                        
+                        <!-- Course Breakdown Table -->
+                        <div class="ultra-glass p-5 rounded-3xl flex flex-col h-[340px]">
+                            <div class="flex items-center gap-2 mb-4 pl-1">
+                                <div class="w-1 h-3.5 bg-[#EE2C3C] rounded-full"></div>
+                                <h4 class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Course-wise Query Breakdown</h4>
+                            </div>
+                            <div class="overflow-y-auto flex-grow pr-1 custom-scrollbar">
+                                <table class="w-full text-left text-[11px] border-collapse">
+                                    <thead>
+                                        <tr class="text-white/40 border-b border-white/[0.08]">
+                                            <th class="py-2 pl-2 font-medium uppercase tracking-wider">Course</th>
+                                            <th class="py-2 font-medium uppercase tracking-wider text-center">Queries</th>
+                                            <th class="py-2 font-medium uppercase tracking-wider text-center">Replied</th>
+                                            <th class="py-2 font-medium uppercase tracking-wider text-center">Pending</th>
+                                            <th class="py-2 font-medium uppercase tracking-wider text-center">SLA Breach</th>
+                                            <th class="py-2 font-medium uppercase tracking-wider text-center">Risk</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="course-risk-body" class="divide-y divide-white/[0.02]"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Learner Risk Table -->
+                        <div class="ultra-glass p-5 rounded-3xl flex flex-col h-[300px]">
+                            <div class="flex items-center gap-2 mb-4 pl-1">
+                                <div class="w-1 h-3.5 bg-blue-500 rounded-full"></div>
+                                <h4 class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Learner Support Risk (Unanswered)</h4>
+                            </div>
+                            <div class="overflow-y-auto flex-grow pr-1 custom-scrollbar">
+                                <table class="w-full text-left text-[11px] border-collapse">
+                                    <thead>
+                                        <tr class="text-white/40 border-b border-white/[0.08]">
+                                            <th class="py-2 pl-2 font-medium uppercase tracking-wider">Learner</th>
+                                            <th class="py-2 font-medium uppercase tracking-wider">Course</th>
+                                            <th class="py-2 font-medium uppercase tracking-wider text-center">Unanswered</th>
+                                            <th class="py-2 font-medium uppercase tracking-wider text-center">Risk Level</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="learner-risks-body" class="divide-y divide-white/[0.02]"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Sidebar (col-span-1) -->
+                    <div class="xl:col-span-1 space-y-5">
+                        
+                        <!-- SLA Doughnut Chart -->
+                        <div class="ultra-glass p-5 rounded-3xl flex flex-col justify-between items-center text-center relative overflow-hidden h-[340px]">
+                            <h4 class="text-[9px] font-bold text-white/40 uppercase tracking-wider self-start pl-1">SLA Status Distribution</h4>
+                            <div class="relative w-40 h-40 flex items-center justify-center">
+                                <canvas id="slaDoughnutChart" class="relative z-10"></canvas>
+                                <div class="absolute flex flex-col justify-center items-center">
+                                    <span id="doughnut-center-percent" class="text-2xl font-black text-white">--%</span>
+                                    <span class="text-[7px] font-medium text-white/40 uppercase tracking-wider mt-0.5">Met SLA</span>
+                                </div>
+                            </div>
+                            <div class="flex justify-center gap-4 text-[9px] w-full border-t border-white/[0.04] pt-3">
+                                <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span><span class="text-white/50">On-Time</span></div>
+                                <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span><span class="text-white/50">Delayed</span></div>
+                                <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-yellow-500 inline-block"></span><span class="text-white/50">Pending</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Critical Escalation Tracker (Sidebar) -->
+                        <div class="ultra-glass p-5 rounded-3xl flex flex-col h-[280px]">
+                            <div class="flex items-center gap-2 mb-3 pl-1">
+                                <div class="w-1 h-3.5 bg-[#EE2C3C] rounded-full"></div>
+                                <h4 class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Critical Escalations</h4>
+                            </div>
+                            <div class="overflow-y-auto flex-grow space-y-3 pr-1 custom-scrollbar" id="escalation-alerts-container"></div>
+                        </div>
+
+                        <!-- Module Bottleneck -->
+                        <div class="ultra-glass p-5 rounded-3xl flex flex-col h-[300px]">
+                            <div class="flex items-center gap-2 mb-3 pl-1">
+                                <div class="w-1 h-3.5 bg-amber-500 rounded-full"></div>
+                                <h4 class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Module Bottlenecks</h4>
+                            </div>
+                            <p class="text-[10px] text-white/40 mb-3 pl-1 font-light">Avg delay by topic/module.</p>
+                            <div class="overflow-y-auto flex-grow space-y-3 pr-1 custom-scrollbar" id="module-bottlenecks-body"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================================================================ -->
+            <!-- TAB 2: TA PERFORMANCE -->
+            <!-- ================================================================ -->
+            <div id="dash-panel-ta" class="hidden space-y-5">
+
+                <!-- TA Highlight Cards: Top 3 Performers + 1 Needs Attention -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="ta-highlight-cards"></div>
+
+                <!-- TA Volume Stats: Most/Least Replied + Fastest/Slowest -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="ta-volume-cards"></div>
+
+                <!-- Full TA Leaderboard Table -->
+                <div class="ultra-glass p-5 rounded-3xl flex flex-col">
+                    <div class="flex items-center gap-2 mb-4 pl-1">
+                        <div class="w-1 h-3.5 bg-emerald-500 rounded-full"></div>
+                        <h4 class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Full TA Leaderboard</h4>
+                        <span class="ml-auto text-[9px] text-white/30 font-light">Sorted by SLA Compliance &darr;</span>
+                    </div>
+                    <div class="overflow-x-auto pr-1 custom-scrollbar">
+                        <table class="w-full text-left text-[11px] border-collapse min-w-[680px]">
+                            <thead>
+                                <tr class="text-white/40 border-b border-white/[0.08]">
+                                    <th class="py-2 pl-2 font-medium uppercase tracking-wider w-6">#</th>
+                                    <th class="py-2 font-medium uppercase tracking-wider">TA / SME Name</th>
+                                    <th class="py-2 font-medium uppercase tracking-wider text-center">Total Replied</th>
+                                    <th class="py-2 font-medium uppercase tracking-wider text-center">Pending (Unanswered)</th>
+                                    <th class="py-2 font-medium uppercase tracking-wider text-center">Avg Response</th>
+                                    <th class="py-2 font-medium uppercase tracking-wider text-center">On-Time</th>
+                                    <th class="py-2 font-medium uppercase tracking-wider text-center">Delayed</th>
+                                    <th class="py-2 font-medium uppercase tracking-wider text-center">SLA %</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ta-leaderboard-body" class="divide-y divide-white/[0.02]"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Workload Capacity Bars -->
+                <div class="ultra-glass p-5 rounded-3xl">
+                    <div class="flex items-center gap-2 mb-4 pl-1">
+                        <div class="w-1 h-3.5 bg-purple-500 rounded-full"></div>
+                        <h4 class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Operational Capacity View</h4>
+                        <span class="ml-auto text-[9px] text-white/30 font-light">Reply volume relative to max observed</span>
+                    </div>
+                    <div class="space-y-3" id="ta-workload-body"></div>
+                </div>
+            </div>
+
+        </div>
+        </div> <!-- End of relative container -->
+
+    <!-- Course Detail Modal -->
+    <div id="course-detail-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-all duration-300 opacity-0">
+        <div class="ultra-glass w-full max-w-5xl rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[85vh] transform scale-95 opacity-0 transition-all duration-300">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center border-b border-white/[0.08] pb-4 mb-4">
+                <div>
+                    <h3 class="text-base font-extrabold text-white tracking-tight" id="course-modal-title">Course Details</h3>
+                    <p class="text-white/40 text-[9px] font-light mt-0.5">Comprehensive audit log for all forum queries in this course.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a id="course-modal-sheet-link" target="_blank" class="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/35 hover:border-emerald-500/50 text-emerald-400 hover:text-emerald-300 text-[10px] font-bold rounded-xl transition-all shadow-sm">
+                        <span>View in Google Sheet</span>
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                    </a>
+                    <button onclick="closeCourseDetailModal()" class="px-3 py-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/50 hover:text-white text-[10px] font-bold rounded-xl transition-all">
+                        Close
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Content -->
+            <div class="overflow-y-auto flex-grow custom-scrollbar pr-1">
+                <table class="w-full text-left text-[10px] border-collapse min-w-[700px]">
+                    <thead>
+                        <tr class="text-white/30 border-b border-white/[0.06] bg-white/[0.02]">
+                            <th class="py-2.5 px-3 font-semibold uppercase tracking-wider">Discussion Topic</th>
+                            <th class="py-2.5 font-semibold uppercase tracking-wider">Learner Name</th>
+                            <th class="py-2.5 font-semibold uppercase tracking-wider">Created On</th>
+                            <th class="py-2.5 font-semibold uppercase tracking-wider text-center">Status</th>
+                            <th class="py-2.5 font-semibold uppercase tracking-wider text-center">Time</th>
+                            <th class="py-2.5 font-semibold uppercase tracking-wider text-center">SLA Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="course-modal-table-body" class="divide-y divide-white/[0.01]">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <script>
+        // Tab switching logic
+        const btnNavAudit = document.getElementById('nav-audit');
+        const btnNavDashboard = document.getElementById('nav-dashboard');
+        const auditView = document.getElementById('audit-view');
+        const dashboardView = document.getElementById('dashboard-view');
+
+        // Global charts instances
+        let slaChartInstance = null;
+
+        // Global data cache
+        window.allQueries = [];
+        window.allCourses = [];
+        window.allCohorts = [];
+        let autoRefreshInterval = null;
+
+        function setTabActive(activeBtn, inactiveBtn, activeView, inactiveView) {
+            // Button styles updates (capsule style matching image)
+            activeBtn.classList.add('bg-[rgba(255,255,255,0.08)]', 'border', 'border-[rgba(255,255,255,0.05)]', 'text-white');
+            activeBtn.classList.remove('text-white/50', 'hover:text-white');
+            
+            inactiveBtn.classList.remove('bg-[rgba(255,255,255,0.08)]', 'border', 'border-[rgba(255,255,255,0.05)]', 'text-white');
+            inactiveBtn.classList.add('text-white/50', 'hover:text-white');
+
+            // Toggle body centering for large scrollable dashboard
+            if (activeView.id === 'dashboard-view') {
+                document.body.classList.replace('justify-center', 'justify-start');
+            } else {
+                document.body.classList.replace('justify-start', 'justify-center');
+            }
+
+            // View toggle animations
+            inactiveView.classList.add('opacity-0', 'translate-y-4');
+            setTimeout(() => {
+                inactiveView.classList.add('hidden');
+                activeView.classList.remove('hidden');
+                setTimeout(() => {
+                    activeView.classList.remove('opacity-0', 'translate-y-4');
+                    activeView.classList.add('opacity-100', 'translate-y-0');
+                }, 50);
+            }, 300);
+        }
+
+        btnNavAudit.addEventListener('click', () => {
+            setTabActive(btnNavAudit, btnNavDashboard, auditView, dashboardView);
+            // Stop auto-refresh interval when switching back to audit view
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        });
+
+        btnNavDashboard.addEventListener('click', () => {
+            setTabActive(btnNavDashboard, btnNavAudit, dashboardView, auditView);
+            loadDashboardData(false);
+            // Start auto-refresh interval (10s)
+            if (!autoRefreshInterval) {
+                autoRefreshInterval = setInterval(() => loadDashboardData(true), 10000);
+            }
+        });
+
+        // ============================================================
+        // DASHBOARD SUB-TAB SWITCHING
+        // ============================================================
+        let activeDashTab = 'overview';
+        function switchDashTab(tabName) {
+            ['overview', 'ta'].forEach(t => {
+                const btn = document.getElementById('dash-tab-' + t);
+                const panel = document.getElementById('dash-panel-' + t);
+                if (!btn || !panel) return;
+                if (t === tabName) {
+                    btn.classList.add('bg-white/[0.08]', 'border', 'border-white/[0.06]', 'text-white');
+                    btn.classList.remove('text-white/50', 'hover:text-white');
+                    panel.classList.remove('hidden');
+                } else {
+                    btn.classList.remove('bg-white/[0.08]', 'border', 'border-white/[0.06]', 'text-white');
+                    btn.classList.add('text-white/50', 'hover:text-white');
+                    panel.classList.add('hidden');
+                }
+            });
+            activeDashTab = tabName;
+        }
+
+
+        // Add event listeners to filter dropdowns
+        document.getElementById('filter-cohort').addEventListener('change', applyFiltersAndRender);
+        document.getElementById('filter-course').addEventListener('change', applyFiltersAndRender);
+
+        // Fetch and load dashboard data
+        function loadDashboardData(isAutoRefresh = false) {
+            const loading = document.getElementById('dashboard-loading');
+            const errorView = document.getElementById('dashboard-error');
+            const overviewPanel = document.getElementById('dash-panel-overview');
+            const taPanel = document.getElementById('dash-panel-ta');
+            const syncStatusText = document.getElementById('sync-status-text');
+            const syncDot = document.getElementById('sync-dot');
+
+            // Show loading skeleton only on first load (not silent background refresh)
+            if (window.allQueries.length === 0 && !isAutoRefresh) {
+                loading.classList.remove('hidden');
+                overviewPanel.classList.add('hidden');
+                taPanel.classList.add('hidden');
+            }
+            errorView.classList.add('hidden');
+
+            // Set sync indicator to in-progress
+            syncStatusText.innerText = "Syncing...";
+            syncDot.className = "w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]";
+
+            fetch('/api/dashboard')
+                .then(res => {
+                    if (!res.ok) throw new Error("Server returned error status " + res.status);
+                    return res.json();
+                })
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+
+                    window.allQueries = data.queries || [];
+                    window.allCourses = data.courses || [];
+                    window.allCohorts = data.cohorts || [];
+                    window.spreadsheetId = data.spreadsheet_id || '1GEzRkk6SArh_TfvCXw_SgWLyveQLFUMgHDjJIQo1wA4';
+
+                    // Populate filter dropdowns
+                    populateFilters();
+
+                    // Render all sections
+                    applyFiltersAndRender();
+
+                    // Hide loading, show current active tab panel
+                    loading.classList.add('hidden');
+                    // Show overview by default; switchDashTab handles toggling others
+                    switchDashTab(activeDashTab || 'overview');
+
+                    syncStatusText.innerText = "Synced";
+                    syncDot.className = "w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]";
+                })
+                .catch(err => {
+                    console.error("Dashboard error:", err);
+                    document.getElementById('dashboard-error-msg').innerText = err.message || "Failed to load dashboard data.";
+                    loading.classList.add('hidden');
+                    errorView.classList.remove('hidden');
+
+                    syncStatusText.innerText = "Sync Failed";
+                    syncDot.className = "w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]";
+                });
+        }
+
+
+        // Retry button listener
+        document.getElementById('btn-retry-dashboard').addEventListener('click', loadDashboardData);
+
+        // Populate filters dropdowns
+        function populateFilters() {
+            const cohortSelect = document.getElementById('filter-cohort');
+            const courseSelect = document.getElementById('filter-course');
+
+            const currentCohortVal = cohortSelect.value;
+            const currentCourseVal = courseSelect.value;
+
+            // Reset and build Cohorts dropdown
+            cohortSelect.innerHTML = '<option value="All" class="bg-[#050505] text-white">All Cohorts</option>';
+            window.allCohorts.forEach(cohort => {
+                if (cohort && cohort !== "N/A") {
+                    const opt = document.createElement('option');
+                    opt.value = cohort;
+                    opt.className = "bg-[#050505] text-white";
+                    opt.innerText = cohort;
+                    cohortSelect.appendChild(opt);
+                }
+            });
+
+            // Reset and build Courses dropdown
+            courseSelect.innerHTML = '<option value="All" class="bg-[#050505] text-white">All Courses</option>';
+            window.allCourses.forEach(course => {
+                if (course && course !== "N/A") {
+                    const opt = document.createElement('option');
+                    opt.value = course;
+                    opt.className = "bg-[#050505] text-white";
+                    opt.innerText = course.length > 25 ? course.substring(0, 22) + "..." : course;
+                    opt.title = course;
+                    courseSelect.appendChild(opt);
+                }
+            });
+
+            // Restore previous values if they still exist in the options
+            if ([...cohortSelect.options].some(o => o.value === currentCohortVal)) {
+                cohortSelect.value = currentCohortVal;
+            }
+            if ([...courseSelect.options].some(o => o.value === currentCourseVal)) {
+                courseSelect.value = currentCourseVal;
+            }
+        }
+
+        // Main filter & render compiler
+        function applyFiltersAndRender() {
+            const cohortVal = document.getElementById('filter-cohort').value;
+            const courseVal = document.getElementById('filter-course').value;
+
+            // Filter queries
+            let filtered = window.allQueries;
+            if (cohortVal !== "All") {
+                filtered = filtered.filter(q => q.cohort === cohortVal);
+            }
+            if (courseVal !== "All") {
+                filtered = filtered.filter(q => q.course_name === courseVal);
+            }
+
+            // Execute calculations
+            renderExecutiveSummary(filtered);
+            renderTAPerformance(filtered);
+            renderCourseRisk(filtered);
+            renderModuleBottlenecks(filtered);
+            renderLearnerRisk(filtered);
+            renderEscalationTracker(filtered);
+            renderTrendsSection(filtered);
+        }
+
+        // ============================================================
+        // RENDERING FUNCTIONS
+        // ============================================================
+
+        // 1. Executive Summary KPI Cards
+        function renderExecutiveSummary(queries) {
+            // Courses count
+            const uniqueCourses = new Set(queries.map(q => q.course_name).filter(Boolean));
+            document.getElementById('stat-courses').innerText = uniqueCourses.size;
+
+            // Valid discussion queries
+            const totalDiscussions = queries.filter(q => q.learner_name && q.learner_name !== "(No student posts yet)").length;
+            document.getElementById('stat-discussions').innerText = totalDiscussions;
+
+            // Replied queries
+            const repliedQueries = queries.filter(q => q.replied === "Yes");
+            document.getElementById('stat-replied').innerText = repliedQueries.length;
+
+            // Avg TAT
+            const durations = repliedQueries.map(q => q.duration_hours).filter(d => typeof d === 'number' && !isNaN(d));
+            const avgTAT = durations.length > 0 ? (durations.reduce((a, b) => a + b, 0) / durations.length) : 0.0;
+            document.getElementById('stat-tat').innerText = avgTAT.toFixed(1);
+
+            // Pending = learner queries not yet replied
+            const pendingCount = queries.filter(q => q.replied === "No" && q.learner_name && q.learner_name !== "(No student posts yet)").length;
+            document.getElementById('stat-pending').innerText = pendingCount;
+
+            // SLA compliance (includes unanswered breached queries > 24h as Delayed)
+            const onTimeCount = repliedQueries.filter(q => q.sla_status === "On Time Response").length;
+            const repliedDelayed = repliedQueries.filter(q => q.sla_status === "Delayed Response").length;
+            
+            let unansweredDelayed = 0;
+            queries.forEach(q => {
+                if (q.replied === "No" && q.created_dt_iso && q.learner_name && q.learner_name !== "(No student posts yet)") {
+                    const elapsedMs = Date.now() - Date.parse(q.created_dt_iso);
+                    const elapsedHrs = elapsedMs / (1000 * 60 * 60);
+                    if (elapsedHrs > 24) {
+                        unansweredDelayed++;
+                    }
+                }
+            });
+
+            const totalSLA = onTimeCount + repliedDelayed + unansweredDelayed;
+            const slaCompliance = totalSLA > 0 ? ((onTimeCount / totalSLA) * 100) : 100;
+            document.getElementById('stat-compliance-percent').innerText = Math.round(slaCompliance);
+            document.getElementById('doughnut-center-percent').innerText = Math.round(slaCompliance) + "%";
+        }
+
+        // 2 & 8. TA Performance & Workload Rendering
+        function renderTAPerformance(queries) {
+            const taLeaderboard = document.getElementById('ta-leaderboard-body');
+            const taWorkload = document.getElementById('ta-workload-body');
+            const taHighlightCards = document.getElementById('ta-highlight-cards');
+            const taVolumeCards = document.getElementById('ta-volume-cards');
+            taLeaderboard.innerHTML = '';
+            taWorkload.innerHTML = '';
+            if (taHighlightCards) taHighlightCards.innerHTML = '';
+            if (taVolumeCards) taVolumeCards.innerHTML = '';
+
+            // Build TA map from replied queries
+            const taMap = {};
+            queries.forEach(q => {
+                const taName = q.replied_by_name || q.first_responder;
+                if (!taName || taName === "N/A" || q.replied !== "Yes") return;
+                if (!taMap[taName]) {
+                    taMap[taName] = { name: taName, replies: 0, onTime: 0, delayed: 0, durations: [], courses: new Set() };
+                }
+                taMap[taName].replies++;
+                taMap[taName].courses.add(q.course_name);
+                if (q.sla_status === "On Time Response") taMap[taName].onTime++;
+                else if (q.sla_status === "Delayed Response") taMap[taName].delayed++;
+                if (typeof q.duration_hours === 'number' && !isNaN(q.duration_hours)) taMap[taName].durations.push(q.duration_hours);
+            });
+
+            // Count pending per TA (unanswered queries where TA is the responder reference)
+            const taPendingMap = {};
+            queries.forEach(q => {
+                const taName = q.replied_by_name || q.first_responder;
+                if (!taName || taName === "N/A") return;
+                if (q.replied === "No" && q.learner_name && q.learner_name !== "(No student posts yet)") {
+                    taPendingMap[taName] = (taPendingMap[taName] || 0) + 1;
+                }
+            });
+
+            // Enrich TA list
+            const tas = Object.values(taMap).map(ta => {
+                const avgTime = ta.durations.length > 0 ? (ta.durations.reduce((a, b) => a + b, 0) / ta.durations.length) : 0.0;
+                const totalReplied = ta.onTime + ta.delayed;
+                const compliance = totalReplied > 0 ? ((ta.onTime / totalReplied) * 100) : 100.0;
+                const pendingForTA = taPendingMap[ta.name] || 0;
+                let tier = "N/A", tierClass = "text-white/40";
+                if (totalReplied > 0) {
+                    if (compliance >= 90) { tier = "🏆 Elite"; tierClass = "text-emerald-400 font-bold"; }
+                    else if (compliance >= 75) { tier = "🟢 Meets SLA"; tierClass = "text-green-300 font-medium"; }
+                    else { tier = "⚠️ Needs Support"; tierClass = "text-[#EE2C3C] font-bold"; }
+                }
+                return { ...ta, avgTime, compliance, tier, tierClass, pendingForTA };
+            });
+
+            tas.sort((a, b) => b.compliance - a.compliance || b.replies - a.replies);
+
+            if (tas.length === 0) {
+                if (taLeaderboard) taLeaderboard.innerHTML = `<tr><td colspan="9" class="py-4 text-center text-white/40 italic">No TA performance data available yet.</td></tr>`;
+                if (taWorkload) taWorkload.innerHTML = `<div class="py-4 text-center text-white/40 italic text-xs">No TA workload data.</div>`;
+                if (taHighlightCards) taHighlightCards.innerHTML = `<div class="col-span-4 ultra-glass p-6 rounded-2xl text-center text-white/30 text-xs">No TA data for this filter.</div>`;
+                return;
+            }
+
+            // ---- HIGHLIGHT CARDS ----
+            if (taHighlightCards) {
+                const topPerformer = tas[0];
+                const worstPerformer = [...tas].sort((a, b) => a.compliance - b.compliance)[0];
+                const mostReplied = [...tas].sort((a, b) => b.replies - a.replies)[0];
+                const mostPending = [...tas].sort((a, b) => b.pendingForTA - a.pendingForTA)[0];
+
+                function buildHL(icon, label, name, sub1, sub2, border) {
+                    return `<div class="ultra-glass p-4 rounded-2xl border-t-2 ${border}">
+                        <div class="text-lg mb-1">${icon}</div>
+                        <p class="text-[9px] font-bold text-white/40 uppercase tracking-wider mb-1">${label}</p>
+                        <p class="text-sm font-black text-white leading-tight">${name}</p>
+                        <p class="text-[10px] text-white/50 mt-1">${sub1} <span class="text-white/30">${sub2}</span></p>
+                    </div>`;
+                }
+
+                taHighlightCards.innerHTML = [
+                    buildHL('🏆', 'Top Performer', topPerformer.name, Math.round(topPerformer.compliance) + '% SLA', '| ' + topPerformer.replies + ' replies', 'border-emerald-500/40'),
+                    buildHL('🎯', 'Most Replies', mostReplied.name, mostReplied.replies + ' queries', 'answered total', 'border-blue-500/40'),
+                    buildHL('⚠️', 'Needs Support', worstPerformer.name, Math.round(worstPerformer.compliance) + '% SLA', '| ' + worstPerformer.delayed + ' delayed', 'border-[#EE2C3C]/40'),
+                    buildHL('🕐', 'High Pending', mostPending.pendingForTA > 0 ? mostPending.name : 'None', mostPending.pendingForTA > 0 ? mostPending.pendingForTA + ' queries' : 'All clear!', mostPending.pendingForTA > 0 ? 'unanswered' : '', 'border-amber-500/40'),
+                ].join('');
+            }
+
+            // ---- VOLUME CARDS ----
+            if (taVolumeCards) {
+                const tasWT = tas.filter(t => t.durations.length > 0);
+                const fastestTA = tasWT.length > 0 ? [...tasWT].sort((a, b) => a.avgTime - b.avgTime)[0] : null;
+                const slowestTA = tasWT.length > 0 ? [...tasWT].sort((a, b) => b.avgTime - a.avgTime)[0] : null;
+                const leastReplied = [...tas].sort((a, b) => a.replies - b.replies)[0];
+                const bestOnTime = [...tas].sort((a, b) => b.onTime - a.onTime)[0];
+
+                function buildVC(icon, label, name, val, valLabel, color) {
+                    return `<div class="ultra-glass p-4 rounded-2xl">
+                        <p class="text-[9px] font-bold text-white/30 uppercase tracking-wider mb-2">${icon} ${label}</p>
+                        <p class="text-xs font-bold text-white leading-tight truncate" title="${name}">${name}</p>
+                        <p class="text-[11px] font-mono mt-1 ${color}">${val} <span class="text-white/40 text-[9px]">${valLabel}</span></p>
+                    </div>`;
+                }
+
+                taVolumeCards.innerHTML = [
+                    fastestTA ? buildVC('⚡', 'Fastest Response', fastestTA.name, fastestTA.avgTime.toFixed(1) + 'h', 'avg TAT', 'text-emerald-400') : `<div class="ultra-glass p-4 rounded-2xl text-white/30 text-xs">No timing data</div>`,
+                    slowestTA ? buildVC('🐢', 'Slowest Response', slowestTA.name, slowestTA.avgTime.toFixed(1) + 'h', 'avg TAT', 'text-red-400') : `<div class="ultra-glass p-4 rounded-2xl text-white/30 text-xs">No timing data</div>`,
+                    buildVC('📉', 'Least Replied', leastReplied.name, leastReplied.replies + '', 'queries', 'text-amber-400'),
+                    buildVC('✅', 'Most On-Time', bestOnTime.name, bestOnTime.onTime + '', 'on-time replies', 'text-blue-400'),
+                ].join('');
+            }
+
+            // ---- LEADERBOARD TABLE ----
+            tas.forEach((ta, idx) => {
+                const comp = Math.round(ta.compliance);
+                const badgeClass = comp >= 90
+                    ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                    : (comp >= 75 ? 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20' : 'text-red-400 bg-red-500/10 border-red-500/20');
+                const rankEmoji = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : (idx + 1);
+
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-white/[0.02] transition-colors border-b border-white/[0.02] text-left';
+                row.innerHTML = `
+                    <td class="py-2.5 pl-2 text-center text-xs">${rankEmoji}</td>
+                    <td class="py-2.5 font-medium text-white/95">${ta.name}</td>
+                    <td class="py-2.5 text-center text-emerald-400 font-mono font-bold">${ta.replies}</td>
+                    <td class="py-2.5 text-center font-mono ${ta.pendingForTA > 0 ? 'text-amber-400 font-bold' : 'text-white/40'}">${ta.pendingForTA}</td>
+                    <td class="py-2.5 text-center text-white/70 font-mono">${ta.avgTime.toFixed(1)}h</td>
+                    <td class="py-2.5 text-center text-white/60 font-mono">${ta.onTime}</td>
+                    <td class="py-2.5 text-center ${ta.delayed > 0 ? 'text-red-400 font-bold' : 'text-white/40'} font-mono">${ta.delayed}</td>
+                    <td class="py-2.5 text-center">
+                        <span class="px-2 py-0.5 text-[9px] font-semibold border rounded-full inline-block ${badgeClass}">${comp}%</span>
+                    </td>
+                `;
+                taLeaderboard.appendChild(row);
+            });
+
+            // ---- WORKLOAD BARS ----
+            const maxReplies = Math.max(...tas.map(t => t.replies), 1);
+            tas.forEach(ta => {
+                const capPct = Math.round((ta.replies / maxReplies) * 100);
+                let colorClass = "bg-emerald-500";
+                if (capPct > 85) colorClass = "bg-[#EE2C3C]";
+                else if (capPct > 60) colorClass = "bg-purple-500";
+
+                const wlDiv = document.createElement('div');
+                wlDiv.className = 'space-y-1';
+                wlDiv.innerHTML = `
+                    <div class="flex justify-between text-[10px]">
+                        <span class="font-medium text-white/90">${ta.name}</span>
+                        <span class="text-white/40 font-mono">${ta.replies} replied | ${ta.pendingForTA} pending | ${ta.courses.size} courses</span>
+                    </div>
+                    <div class="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
+                        <div class="${colorClass} h-full rounded-full transition-all duration-700" style="width: ${capPct}%"></div>
+                    </div>
+                `;
+                taWorkload.appendChild(wlDiv);
+            });
+        }
+        // 3. Course Risk Monitoring Rendering
+        function renderCourseRisk(queries) {
+            const courseRiskBody = document.getElementById('course-risk-body');
+            courseRiskBody.innerHTML = '';
+
+            const courseMap = {};
+            queries.forEach(q => {
+                if (!q.course_name || q.course_name === "N/A") return;
+
+                if (!courseMap[q.course_name]) {
+                    courseMap[q.course_name] = {
+                        name: q.course_name,
+                        queries: 0,
+                        replied: 0,
+                        delayed: 0,
+                        pending: 0,
+                        pending_breached: 0,
+                        durations: []
+                    };
+                }
+
+                if (q.learner_name && q.learner_name !== "(No student posts yet)") {
+                    courseMap[q.course_name].queries++;
+                    if (q.replied === "Yes") {
+                        courseMap[q.course_name].replied++;
+                        if (q.sla_status === "Delayed Response") {
+                            courseMap[q.course_name].delayed++;
+                        }
+                        if (typeof q.duration_hours === 'number' && !isNaN(q.duration_hours)) {
+                            courseMap[q.course_name].durations.push(q.duration_hours);
+                        }
+                    } else if (q.replied === "No") {
+                        courseMap[q.course_name].pending++;
+                        if (q.created_dt_iso) {
+                            const elapsedMs = Date.now() - Date.parse(q.created_dt_iso);
+                            const elapsedHrs = elapsedMs / (1000 * 60 * 60);
+                            if (elapsedHrs > 24) {
+                                courseMap[q.course_name].delayed++;
+                                courseMap[q.course_name].pending_breached++;
+                            }
+                        }
+                    }
+                }
+            });
+
+            const courses = Object.values(courseMap).map(c => {
+                const avgTAT = c.durations.length > 0 ? (c.durations.reduce((a, b) => a + b, 0) / c.durations.length) : 0.0;
+                const breachDenominator = c.replied + c.pending_breached;
+                const breachPct = breachDenominator > 0 ? ((c.delayed / breachDenominator) * 100) : 0.0;
+
+                // Determine RAG risk rating
+                let rating = "Green";
+                let badgeClass = "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
+                if (breachPct > 30 || c.pending >= 4 || avgTAT > 36) {
+                    rating = "Red";
+                    badgeClass = "text-[#EE2C3C] bg-[#EE2C3C]/10 border-[#EE2C3C]/20";
+                } else if (breachPct > 15 || c.pending >= 1 || avgTAT > 24) {
+                    rating = "Amber";
+                    badgeClass = "text-yellow-400 bg-yellow-500/10 border-yellow-500/20";
+                }
+
+                return {
+                    ...c,
+                    avgTAT,
+                    breachPct,
+                    rating,
+                    badgeClass
+                };
+            });
+
+            // Sort risk: Red first, then Amber, then Green, then pending desc
+            const order = { "Red": 1, "Amber": 2, "Green": 3 };
+            courses.sort((a, b) => order[a.rating] - order[b.rating] || b.pending - a.pending);
+
+            if (courses.length === 0) {
+                courseRiskBody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-white/40 italic">No courses found for this filter.</td></tr>`;
+                return;
+            }
+
+            courses.forEach(c => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-white/[0.04] hover:text-emerald-400 transition-colors border-b border-white/[0.02] text-left cursor-pointer group';
+                row.onclick = () => showCourseDetailModal(c.name);
+                row.innerHTML = `
+                    <td class="py-2.5 pl-2 font-semibold text-white group-hover:text-emerald-400 transition-colors truncate max-w-[160px] sm:max-w-none" title="${c.name}">${c.name} <span class="text-[9px] text-white/30 font-normal ml-1 group-hover:text-emerald-400 transition-colors">🔍 details</span></td>
+                    <td class="py-2.5 text-center text-white/60 font-mono">${c.queries}</td>
+                    <td class="py-2.5 text-center text-emerald-400 font-mono font-bold">${c.replied}</td>
+                    <td class="py-2.5 text-center font-mono ${c.pending > 0 ? 'text-amber-400 font-bold' : 'text-white/40'}">${c.pending}</td>
+                    <td class="py-2.5 text-center text-white/70 font-mono">${Math.round(c.breachPct)}%</td>
+                    <td class="py-2.5 text-center">
+                        <span class="px-2 py-0.5 text-[9px] font-semibold border rounded-full inline-block ${c.badgeClass}">${c.rating}</span>
+                    </td>
+                `;
+                courseRiskBody.appendChild(row);
+            });
+        }
+
+        // 7. Module Bottleneck Analysis
+        function renderModuleBottlenecks(queries) {
+            const bottlenecksBody = document.getElementById('module-bottlenecks-body');
+            bottlenecksBody.innerHTML = '';
+
+            const modMap = {};
+            queries.forEach(q => {
+                if (!q.topic || !q.learner_name || q.learner_name === "(No student posts yet)") return;
+
+                // Extract Module
+                let moduleName = "Other Modules";
+                let match = q.topic.match(/Module\s*(\d+)|Mod\s*(\d+)/i);
+                if (match) {
+                    moduleName = "Module " + (match[1] || match[2]);
+                } else {
+                    let wMatch = q.topic.match(/Week\s*(\d+)/i);
+                    if (wMatch) {
+                        moduleName = "Week " + wMatch[1];
+                    } else {
+                        // Take topic prefix
+                        moduleName = q.topic.split(/[:>-]/)[0].trim();
+                        if (moduleName.length > 20) moduleName = moduleName.substring(0, 17) + "...";
+                    }
+                }
+
+                if (!modMap[moduleName]) {
+                    modMap[moduleName] = {
+                        name: moduleName,
+                        queries: 0,
+                        replied: 0,
+                        pending: 0,
+                        durations: []
+                    };
+                }
+
+                modMap[moduleName].queries++;
+                if (q.replied === "Yes") {
+                    modMap[moduleName].replied++;
+                    if (typeof q.duration_hours === 'number' && !isNaN(q.duration_hours)) {
+                        modMap[moduleName].durations.push(q.duration_hours);
+                    }
+                } else if (q.replied === "No") {
+                    modMap[moduleName].pending++;
+                }
+            });
+
+            const mods = Object.values(modMap).map(m => {
+                const avgTAT = m.durations.length > 0 ? (m.durations.reduce((a, b) => a + b, 0) / m.durations.length) : 0.0;
+                return { ...m, avgTAT };
+            });
+
+            // Sort by TAT descending
+            mods.sort((a, b) => b.avgTAT - a.avgTAT);
+
+            const displayMods = mods.slice(0, 5); // top 5 bottlenecks
+
+            if (displayMods.length === 0) {
+                bottlenecksBody.innerHTML = `<div class="py-4 text-center text-white/40 italic text-xs">No module discussion activities.</div>`;
+                return;
+            }
+
+            displayMods.forEach(m => {
+                const ratio = Math.min(100, Math.round((m.avgTAT / 24) * 100)); // percent of SLA threshold (24 hours)
+                let colorClass = "bg-blue-500";
+                if (m.avgTAT > 24) colorClass = "bg-[#EE2C3C] animate-pulse";
+                else if (m.avgTAT > 12) colorClass = "bg-amber-500";
+
+                const row = document.createElement('div');
+                row.className = 'space-y-1';
+                row.innerHTML = `
+                    <div class="flex justify-between text-[10px]">
+                        <span class="font-medium text-white/95 truncate max-w-[130px]" title="${m.name}">${m.name}</span>
+                        <span class="text-white/40 font-mono">${m.avgTAT.toFixed(1)} hrs avg (${m.pending} pending)</span>
+                    </div>
+                    <div class="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
+                        <div class="${colorClass} h-full rounded-full" style="width: ${ratio}%"></div>
+                    </div>
+                `;
+                bottlenecksBody.appendChild(row);
+            });
+        }
+
+        // 5. Learner Support Risk Rendering
+        function renderLearnerRisk(queries) {
+            const risksBody = document.getElementById('learner-risks-body');
+            risksBody.innerHTML = '';
+
+            const learnerMap = {};
+            queries.forEach(q => {
+                const name = q.learner_name;
+                if (!name || name === "(No student posts yet)") return;
+
+                if (!learnerMap[name]) {
+                    learnerMap[name] = {
+                        name: name,
+                        course: q.course_name,
+                        unanswered: 0,
+                        delayed: 0,
+                        total: 0
+                    };
+                }
+
+                learnerMap[name].total++;
+                if (q.replied === "No") {
+                    learnerMap[name].unanswered++;
+                }
+                if (q.sla_status === "Delayed Response") {
+                    learnerMap[name].delayed++;
+                }
+            });
+
+            const learners = Object.values(learnerMap)
+                .filter(l => l.unanswered > 0 || l.delayed > 0)
+                .map(l => {
+                    let level = "Medium";
+                    let badgeClass = "text-yellow-400 bg-yellow-500/10 border-yellow-500/20";
+                    if (l.unanswered >= 2 || l.delayed >= 2) {
+                        level = "High";
+                        badgeClass = "text-[#EE2C3C] bg-[#EE2C3C]/10 border-[#EE2C3C]/20";
+                    }
+                    return { ...l, level, badgeClass };
+                });
+
+            // Sort by unanswered desc, delayed desc
+            learners.sort((a, b) => b.unanswered - a.unanswered || b.delayed - a.delayed);
+
+            if (learners.length === 0) {
+                risksBody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-white/40 italic">All learners currently supported within SLAs.</td></tr>`;
+                return;
+            }
+
+            learners.forEach(l => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-white/[0.02] transition-colors border-b border-white/[0.02] text-left';
+                row.innerHTML = `
+                    <td class="py-2.5 pl-2 font-medium text-white/95">${l.name}</td>
+                    <td class="py-2.5 text-white/60 truncate max-w-[180px] sm:max-w-none" title="${l.course}">${l.course}</td>
+                    <td class="py-2.5 text-center text-white/70 font-mono font-bold">${l.unanswered}</td>
+                    <td class="py-2.5 text-center">
+                        <span class="px-2 py-0.5 text-[9px] font-semibold border rounded-full inline-block ${l.badgeClass}">
+                            ${l.level}
+                        </span>
+                    </td>
+                `;
+                risksBody.appendChild(row);
+            });
+        }
+
+        // 6. Critical Escalation Tracker
+        function renderEscalationTracker(queries) {
+            const container = document.getElementById('escalation-alerts-container');
+            container.innerHTML = '';
+
+            const escalations = [];
+
+            // Alert 1: Unanswered queries pending > 48 hours
+            queries.forEach(q => {
+                if (q.replied === "No" && q.created_dt_iso) {
+                    const elapsedMs = Date.now() - Date.parse(q.created_dt_iso);
+                    const elapsedHrs = elapsedMs / (1000 * 60 * 60);
+                    // Filter out future dates or parsing errors
+                    if (elapsedHrs > 48 && elapsedHrs < 10000) {
+                        escalations.push({
+                            type: "Unanswered >48 Hours",
+                            message: `Learner <strong>${q.learner_name}</strong> is awaiting a response for ${Math.round(elapsedHrs)}h in course <strong>${q.course_name}</strong>.`,
+                            severity: "critical"
+                        });
+                    }
+                }
+            });
+
+            // Alert 2: Courses with SLA Breach > 35%
+            const courseBreaches = {};
+            queries.forEach(q => {
+                if (!q.course_name || q.course_name === "N/A" || q.replied !== "Yes") return;
+                if (!courseBreaches[q.course_name]) {
+                    courseBreaches[q.course_name] = { replied: 0, delayed: 0 };
+                }
+                courseBreaches[q.course_name].replied++;
+                if (q.sla_status === "Delayed Response") {
+                    courseBreaches[q.course_name].delayed++;
+                }
+            });
+
+            Object.entries(courseBreaches).forEach(([courseName, stats]) => {
+                const breachPct = (stats.delayed / stats.replied) * 100;
+                if (breachPct > 35 && stats.replied >= 2) {
+                    escalations.push({
+                        type: "High SLA Breach",
+                        message: `Course <strong>${courseName}</strong> SLA Breach rate is extremely high at <strong>${Math.round(breachPct)}%</strong>.`,
+                        severity: "warning"
+                    });
+                }
+            });
+
+            // Alert 3: TAs with high backlogs
+            const taBacklogs = {};
+            queries.forEach(q => {
+                const taName = q.replied_by_name || q.first_responder;
+                if (!taName || taName === "N/A") return;
+                if (!taBacklogs[taName]) {
+                    taBacklogs[taName] = { delayed: 0, pending: 0 };
+                }
+                if (q.sla_status === "Delayed Response") taBacklogs[taName].delayed++;
+                if (q.replied === "No") taBacklogs[taName].pending++;
+            });
+
+            Object.entries(taBacklogs).forEach(([taName, stats]) => {
+                const backlogCount = stats.delayed + stats.pending;
+                if (backlogCount > 3) {
+                    escalations.push({
+                        type: "TA Capacity Overload",
+                        message: `TA <strong>${taName}</strong> has an active backlog of <strong>${backlogCount}</strong> delayed / pending queries.`,
+                        severity: "warning"
+                    });
+                }
+            });
+
+            if (escalations.length === 0) {
+                container.innerHTML = `
+                    <div class="p-4 bg-emerald-950/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center gap-2 text-center h-full">
+                        <span class="text-[#4ade80] text-xs font-medium">✔ 0 active escalations flagged</span>
+                    </div>
+                `;
+                return;
+            }
+
+            // Render alerts
+            escalations.forEach(esc => {
+                const borderClass = esc.severity === "critical" ? "border-[#EE2C3C]/30 bg-[#EE2C3C]/5" : "border-amber-500/30 bg-amber-950/20";
+                const dotColor = esc.severity === "critical" ? "bg-[#EE2C3C]" : "bg-amber-500";
+                const typeColor = esc.severity === "critical" ? "text-[#EE2C3C]" : "text-amber-400";
+
+                const alertCard = document.createElement('div');
+                alertCard.className = `p-3 border rounded-2xl flex items-start gap-2.5 shadow-sm hover:${esc.severity === "critical" ? 'border-[#EE2C3C]/50' : 'border-amber-500/50'} transition-colors`;
+                alertCard.classList.add(...borderClass.split(' '));
+                alertCard.innerHTML = `
+                    <div class="w-1.5 h-1.5 rounded-full ${dotColor} mt-1.5 flex-shrink-0 animate-ping"></div>
+                    <div>
+                        <span class="text-[9px] font-bold ${typeColor} uppercase tracking-widest block">${esc.type}</span>
+                        <span class="text-[11px] text-white/80 leading-relaxed font-light">${esc.message}</span>
+                    </div>
+                `;
+                container.appendChild(alertCard);
+            });
+        }
+
+        // 10. SLA Doughnut and Weekly Trend Chart
+        function renderTrendsSection(queries) {
+            // --- Chart 1: SLA Doughnut ---
+            if (slaChartInstance) {
+                slaChartInstance.destroy();
+            }
+
+            const replied = queries.filter(q => q.replied === "Yes");
+            const onTime = replied.filter(q => q.sla_status === "On Time Response").length;
+            let delayed = replied.filter(q => q.sla_status === "Delayed Response").length;
+            let pending = 0;
+
+            queries.forEach(q => {
+                if (q.replied === "No" && q.created_dt_iso && q.learner_name && q.learner_name !== "(No student posts yet)") {
+                    const elapsedMs = Date.now() - Date.parse(q.created_dt_iso);
+                    const elapsedHrs = elapsedMs / (1000 * 60 * 60);
+                    if (elapsedHrs > 24) {
+                        delayed++;
+                    } else {
+                        pending++;
+                    }
+                }
+            });
+
+            const doughnutCtx = document.getElementById('slaDoughnutChart').getContext('2d');
+            slaChartInstance = new Chart(doughnutCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['On-Time', 'Delayed', 'Pending'],
+                    datasets: [{
+                        data: [onTime, delayed, pending],
+                        backgroundColor: ['#10b981', '#ef4444', '#f59e0b'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    cutout: '80%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const val = context.raw;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+                                    return ` ${context.label}: ${val} (${pct}%)`;
+                                }
+                            }
+                        }
+                    },
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+        }
+
+        // ============================================================
+        // LEARNER SEARCH — Premium inline dropdown
+        // ============================================================
+
+        function showLearnerResults() {
+            const resultsEl = document.getElementById('learner-search-results');
+            const val = document.getElementById('learner-search-input').value.trim();
+            if (val.length >= 2) {
+                resultsEl.classList.remove('hidden');
+            }
+        }
+
+        function runLearnerSearch() {
+            const input = document.getElementById('learner-search-input').value.trim().toLowerCase();
+            const resultsEl = document.getElementById('learner-search-results');
+
+            if (!input || input.length < 2) {
+                resultsEl.classList.add('hidden');
+                return;
+            }
+
+            // Show the dropdown
+            resultsEl.classList.remove('hidden');
+
+            if (!window.allQueries || window.allQueries.length === 0) {
+                resultsEl.innerHTML = `<div class="p-4 border border-amber-500/20 bg-amber-500/5 rounded-2xl text-center">
+                    <p class="text-amber-400/80 text-xs">&#x26A0;&#xFE0F; Dashboard data not loaded yet &mdash; please wait for sync.</p>
+                </div>`;
+                return;
+            }
+
+            const matched = window.allQueries.filter(q => {
+                if (!q.learner_name || q.learner_name === "(No student posts yet)") return false;
+                return (
+                    (q.learner_name && q.learner_name.toLowerCase().includes(input)) ||
+                    (q.learner_email && q.learner_email.toLowerCase().includes(input)) ||
+                    (q.student_id && String(q.student_id).toLowerCase().includes(input))
+                );
+            });
+
+            if (matched.length === 0) {
+                resultsEl.innerHTML = `<div class="p-4 border border-white/10 bg-white/[0.02] rounded-2xl text-center">
+                    <p class="text-white/40 text-xs">No learner found matching <strong class="text-white/70">"${input}"</strong></p>
+                </div>`;
+                return;
+            }
+
+            // Group by learner
+            const learnerGroups = {};
+            matched.forEach(q => {
+                const key = q.learner_name;
+                if (!learnerGroups[key]) learnerGroups[key] = { name: key, email: q.learner_email || '', studentId: q.student_id || '', queries: [] };
+                learnerGroups[key].queries.push(q);
+            });
+
+            let html = '';
+            Object.values(learnerGroups).forEach(learner => {
+                const totalQ = learner.queries.length;
+                const repliedQ = learner.queries.filter(q => q.replied === "Yes").length;
+                const pendingQ = learner.queries.filter(q => q.replied === "No").length;
+                const courses = [...new Set(learner.queries.map(q => q.course_name).filter(Boolean))];
+                const hasPending = pendingQ > 0;
+
+                html += `<div class="group ultra-glass p-5 rounded-2xl border-l-2 ${hasPending ? 'border-l-amber-500/60' : 'border-l-emerald-500/40'} hover:border-l-${hasPending ? 'amber-500' : 'emerald-500'} hover:border-white/20 hover:bg-white/[0.07] transition-all duration-300 cursor-pointer space-y-4">
+                    <!-- Learner Header -->
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center text-sm font-black text-white/90 flex-shrink-0 group-hover:from-indigo-500/30 group-hover:to-purple-500/30 transition-all">
+                            ${learner.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div class="flex-grow min-w-0">
+                            <p class="text-sm font-bold text-white truncate transition-colors">${learner.name}</p>
+                            <p class="text-[10px] text-white/40 truncate">${learner.email}${learner.studentId ? ' &bull; ID: ' + learner.studentId : ''}</p>
+                        </div>
+                        <div class="flex items-center gap-3 flex-shrink-0">
+                            <div class="text-center"><p class="text-base font-black text-white">${totalQ}</p><p class="text-[8px] text-white/30 uppercase">Total</p></div>
+                            <div class="text-center"><p class="text-base font-black text-emerald-400">${repliedQ}</p><p class="text-[8px] text-white/30 uppercase">Replied</p></div>
+                            <div class="text-center"><p class="text-base font-black ${pendingQ > 0 ? 'text-amber-400' : 'text-white/30'}">${pendingQ}</p><p class="text-[8px] text-white/30 uppercase">Pending</p></div>
+                        </div>
+                    </div>
+                    <!-- Course Pills -->
+                    <div class="flex flex-wrap gap-1.5">
+                        ${courses.map(c => `<span class="px-2 py-0.5 bg-white/[0.04] border border-white/[0.07] text-[9px] text-white/50 rounded-full group-hover:border-white/20 transition-colors">${c}</span>`).join('')}
+                    </div>
+                    <!-- Query History Table -->
+                    <div class="overflow-x-auto rounded-xl border border-white/[0.06] group-hover:border-white/[0.12] transition-colors">
+                        <table class="w-full text-left text-[10px] border-collapse min-w-[480px]">
+                            <thead>
+                                <tr class="text-white/25 border-b border-white/[0.05] bg-white/[0.02]">
+                                    <th class="py-2 px-3 font-medium uppercase tracking-wider">Topic</th>
+                                    <th class="py-2 font-medium uppercase tracking-wider">Course</th>
+                                    <th class="py-2 font-medium uppercase tracking-wider text-center">Status</th>
+                                    <th class="py-2 font-medium uppercase tracking-wider text-center">Time</th>
+                                    <th class="py-2 font-medium uppercase tracking-wider text-center">SLA</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${learner.queries.map(q => {
+                                    const statusBadge = q.replied === 'Yes'
+                                        ? '<span class="text-emerald-400 font-semibold">&#x2713; Replied</span>'
+                                        : '<span class="text-amber-400 font-semibold">&#x29D6; Pending</span>';
+
+                                    let elapsedHrs = 0;
+                                    if (q.replied === 'No' && q.created_dt_iso) {
+                                        const elapsedMs = Date.now() - Date.parse(q.created_dt_iso);
+                                        elapsedHrs = elapsedMs / (1000 * 60 * 60);
+                                    }
+
+                                    let slaBadge = '';
+                                    if (q.replied === 'Yes') {
+                                        slaBadge = q.sla_status === 'On Time Response'
+                                            ? '<span class="px-1.5 py-0.5 text-[8px] text-emerald-400 border border-emerald-500/20 bg-emerald-500/10 rounded-md">On-Time</span>'
+                                            : '<span class="px-1.5 py-0.5 text-[8px] text-[#EE2C3C] border border-[#EE2C3C]/20 bg-[#EE2C3C]/10 rounded-md">Delayed</span>';
+                                    } else {
+                                        slaBadge = elapsedHrs > 24
+                                            ? '<span class="px-1.5 py-0.5 text-[8px] text-[#EE2C3C] border border-[#EE2C3C]/20 bg-[#EE2C3C]/10 rounded-md">Delayed</span>'
+                                            : '<span class="px-1.5 py-0.5 text-[8px] text-amber-400 border border-amber-500/20 bg-amber-500/10 rounded-md">Awaiting</span>';
+                                    }
+
+                                    const topicRaw = q.topic || '(No topic)';
+                                    const topic = topicRaw.length > 40 ? topicRaw.substring(0, 37) + '...' : topicRaw;
+
+                                    let tat = '—';
+                                    if (q.replied === 'Yes' && typeof q.duration_hours === 'number') {
+                                        tat = q.duration_hours.toFixed(1) + 'h';
+                                    } else if (q.replied === 'No' && q.created_dt_iso && elapsedHrs >= 0) {
+                                        tat = Math.round(elapsedHrs) + 'h (Pending)';
+                                    }
+
+                                    const rowHover = 'hover:bg-white/[0.03]';
+                                    return '<tr class="border-b border-white/[0.03] ' + rowHover + ' transition-colors">' +
+                                        '<td class="py-2 px-3 text-white/75" title="' + (q.topic || '') + '">' + topic + '</td>' +
+                                        '<td class="py-2 text-white/40 truncate max-w-[120px]" title="' + (q.course_name || '') + '">' + (q.course_name || 'N/A').substring(0, 20) + '</td>' +
+                                        '<td class="py-2 text-center">' + statusBadge + '</td>' +
+                                        '<td class="py-2 text-center text-white/50 font-mono">' + tat + '</td>' +
+                                        '<td class="py-2 text-center">' + slaBadge + '</td>' +
+                                    '</tr>';
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>`;
+            });
+            resultsEl.innerHTML = html;
+        }
+
+        function clearLearnerSearch() {
+            document.getElementById('learner-search-input').value = '';
+            document.getElementById('learner-search-results').classList.add('hidden');
+            document.getElementById('learner-search-results').innerHTML = '';
+        }
+
+        // Click outside to dismiss search results
+        document.addEventListener('click', function(e) {
+            const searchWrap = document.getElementById('learner-search-wrap');
+            const resultsEl = document.getElementById('learner-search-results');
+            if (searchWrap && resultsEl && !searchWrap.contains(e.target) && !resultsEl.contains(e.target)) {
+                resultsEl.classList.add('hidden');
+            }
+        });
+
+        // Course details modal functions
+        function showCourseDetailModal(courseName) {
+            const courseQueries = window.allQueries.filter(q => q.course_name === courseName);
+
+            document.getElementById('course-modal-title').innerText = courseName;
+            
+            const sheetId = window.spreadsheetId || '1GEzRkk6SArh_TfvCXw_SgWLyveQLFUMgHDjJIQo1wA4';
+            const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
+            document.getElementById('course-modal-sheet-link').href = sheetUrl;
+
+            const body = document.getElementById('course-modal-table-body');
+            body.innerHTML = '';
+
+            if (courseQueries.length === 0) {
+                body.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-white/40 italic">No queries found for this course.</td></tr>`;
+            } else {
+                courseQueries.forEach(q => {
+                    const statusBadge = q.replied === 'Yes'
+                        ? '<span class="text-emerald-400 font-semibold">&#x2713; Replied</span>'
+                        : '<span class="text-amber-400 font-semibold">&#x29D6; Pending</span>';
+
+                    let elapsedHrs = 0;
+                    if (q.replied === 'No' && q.created_dt_iso) {
+                        const elapsedMs = Date.now() - Date.parse(q.created_dt_iso);
+                        elapsedHrs = elapsedMs / (1000 * 60 * 60);
+                    }
+
+                    let slaBadge = '';
+                    if (q.replied === 'Yes') {
+                        slaBadge = q.sla_status === 'On Time Response'
+                            ? '<span class="px-1.5 py-0.5 text-[8px] text-emerald-400 border border-emerald-500/20 bg-emerald-500/10 rounded-md">On-Time</span>'
+                            : '<span class="px-1.5 py-0.5 text-[8px] text-[#EE2C3C] border border-[#EE2C3C]/20 bg-[#EE2C3C]/10 rounded-md">Delayed</span>';
+                    } else {
+                        slaBadge = elapsedHrs > 24
+                            ? '<span class="px-1.5 py-0.5 text-[8px] text-[#EE2C3C] border border-[#EE2C3C]/20 bg-[#EE2C3C]/10 rounded-md">Delayed</span>'
+                            : '<span class="px-1.5 py-0.5 text-[8px] text-amber-400 border border-amber-500/20 bg-amber-500/10 rounded-md">Awaiting</span>';
+                    }
+
+                    let tat = '—';
+                    if (q.replied === 'Yes' && typeof q.duration_hours === 'number') {
+                        tat = q.duration_hours.toFixed(1) + 'h';
+                    } else if (q.replied === 'No' && q.created_dt_iso && elapsedHrs >= 0) {
+                        tat = Math.round(elapsedHrs) + 'h (Pending)';
+                    }
+
+                    const topicRaw = q.topic || '(No topic)';
+                    const topic = topicRaw.length > 50 ? topicRaw.substring(0, 47) + '...' : topicRaw;
+
+                    const tr = document.createElement('tr');
+                    tr.className = 'border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors';
+                    tr.innerHTML = `
+                        <td class="py-2.5 px-3 text-white/80 font-medium" title="${q.topic || ''}">${topic}</td>
+                        <td class="py-2.5 text-white/70">${q.learner_name || 'N/A'}</td>
+                        <td class="py-2.5 text-white/50 font-mono text-[9px]">${q.created_on || 'N/A'}</td>
+                        <td class="py-2.5 text-center">${statusBadge}</td>
+                        <td class="py-2.5 text-center text-white/60 font-mono">${tat}</td>
+                        <td class="py-2.5 text-center">${slaBadge}</td>
+                    `;
+                    body.appendChild(tr);
+                });
+            }
+
+            const modal = document.getElementById('course-detail-modal');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.firstElementChild.classList.remove('scale-95', 'opacity-0');
+            }, 10);
+        }
+
+        function closeCourseDetailModal() {
+            const modal = document.getElementById('course-detail-modal');
+            modal.classList.add('opacity-0');
+            modal.firstElementChild.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        // Existing Audit Form Logic
         document.getElementById('tracker-form').addEventListener('submit', function(e) {
+
             e.preventDefault();
             const course_codes = document.getElementById('course_codes').value;
             const btn = document.getElementById('submit-btn');
@@ -224,10 +1631,16 @@
                         
                         if (status === 'COMPLETE') {
                             clearInterval(poll);
-                            progText.innerHTML = '<span class="text-[#4ade80]">✔ Audit Completed! Downloading Excel File...</span>';
+                            progText.innerHTML = '<span class="text-[#4ade80]">✔ Audit Completed! Downloading Excel File & Syncing Database...</span>';
+                            
+                            // Trigger background dashboard cache updates
                             setTimeout(() => {
                                 window.location.href = '/download/' + taskId;
-                                setTimeout(resetUI, 2000);
+                                setTimeout(() => {
+                                    resetUI();
+                                    // Refresh dashboard background cache so switching tabs has latest data
+                                    fetch('/api/dashboard').catch(err => console.error("Bg sync failed", err));
+                                }, 2000);
                             }, 1000);
                         } else if (status.startsWith('ERROR')) {
                             clearInterval(poll);

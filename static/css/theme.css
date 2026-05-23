@@ -393,7 +393,8 @@ input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  box-shadow: 0 0 0 2px var(--accent), 0 0 20px var(--glow-color);
+  border-color: var(--border-hover) !important;
+  box-shadow: 0 0 0 2px var(--border-color) !important;
 }
 
 /* ============================================================
