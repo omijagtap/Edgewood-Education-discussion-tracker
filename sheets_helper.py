@@ -15,7 +15,7 @@ except ImportError:
     pass
 
 # Config
-SPREADSHEET_ID = os.getenv("GOOGLE_SHEET_ID", "1gbX-PyfeWBXI18dS8r4XneJCpG5mWkADfWMDhd6UIPM")
+SPREADSHEET_ID = os.getenv("GOOGLE_SHEET_ID", "1cV1qjq84u0h0QaS1HISUQNbcQrWuASInlFN3x7wxXRo")
 GOOGLE_CREDS_FILE = os.getenv("GOOGLE_CREDS_FILE", "linen-rex-436411-r4-9bba0db0c720.json")
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -138,8 +138,8 @@ def push_to_google_sheet(flat_rows, sis_id, course_name):
     values.append([""] * 14)
 
     # Overview calculations
-    unique_learners = len(set(r.get("Learner Name") for r in flat_rows if r.get("Learner Name") and r.get("Learner Name") != "(No student posts yet)"))
-    total_queries   = len([r for r in flat_rows if r.get("Replied") != "N/A" and r.get("Learner Name") != "(No student posts yet)"])
+    unique_learners = len(set(r.get("Learner Name") for r in flat_rows if r.get("Learner Name") and r.get("Learner Name") not in ("(No student posts yet)", "N/A", "Unknown", "User#None")))
+    total_queries   = len(flat_rows)
     total_replied   = len([r for r in flat_rows if r.get("Replied") == "Yes"])
     durations       = [r.get("Duration (Hours)") for r in flat_rows if isinstance(r.get("Duration (Hours)"), (int, float))]
     avg_course_time = round(sum(durations)/len(durations), 2) if durations else 0
@@ -413,7 +413,7 @@ def get_dashboard_data():
                 replied_by_name = padded[12].strip()
                 replied_by_email = padded[13].strip()
 
-                if learner_name == "(No student posts yet)":
+                if not learner_name or learner_name in ("(No student posts yet)", "N/A", "Unknown", "User#None"):
                     # Placeholder, but keep record of course/cohort
                     if course_name and course_name != "N/A":
                         unique_courses.add(course_name)
