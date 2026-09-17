@@ -59,6 +59,8 @@ SCRIPT_DIR   = os.path.dirname(os.path.abspath(__file__))
 
 # Define TA Email addresses to check against (case-insensitive)
 TA_EMAILS = [
+    "AnkPandey@edgewood.edu",
+    "jranjan@edgewood.edu",
     "pyerneni@edgewood.edu",
     "nkumari@edgewood.edu",
     "dkalra@edgewood.edu",
