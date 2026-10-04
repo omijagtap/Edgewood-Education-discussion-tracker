@@ -2527,7 +2527,7 @@
             const courseLabel = currentScanData.course_code || currentScanData.course_shell;
             const topMetaTitle = document.getElementById('draft-top-meta-title');
             if (topMetaTitle) {
-                topMetaTitle.innerText = `${group.ta_name} | Automatic_Email_Pending Discussion Forum Queries_${courseLabel} | ${group.queries.length} Pending`;
+                topMetaTitle.innerText = `${group.ta_name} | Discussion Forum Queries - ${courseLabel} - Gentle Reminder | ${group.queries.length} Pending`;
                 topMetaTitle.title = topMetaTitle.innerText;
             }
 
@@ -2548,13 +2548,17 @@
             const barSpoc = document.getElementById('bar-spoc-tag');
             if (barSpoc) barSpoc.innerText = `SPOC: ${cfg.full_name ? cfg.full_name.split(' ')[0] : 'Omkar'}`;
 
-            // Subject Line: Automatic_Email_Pending Discussion Forum Queries_<Course>
+            // Subject Line: Discussion Forum Queries - <Course> - Gentle Reminder
             const subjectInput = document.getElementById('draft-subject-input');
-            const defaultSubject = `Automatic_Email_Pending Discussion Forum Queries_${courseLabel}`;
+            const defaultSubject = `Discussion Forum Queries - ${courseLabel} - Gentle Reminder`;
             if (subjectInput) subjectInput.value = defaultSubject;
 
-            // Full TA Name for greeting
+            // TA name helpers: extract last name for academic salutation
             const taFullName = group.ta_name.trim();
+            const taCleanName = taFullName.replace(/^(Dr\.|Doctor|Prof\.|Professor)\s+/i, '').trim();
+            const taNameParts = taCleanName.split(/\s+/);
+            const taLastName = taNameParts.length > 1 ? taNameParts[taNameParts.length - 1] : taNameParts[0];
+            const taSalutation = `Dear Dr. ${taLastName},`;
             const multiCourse = currentScanData.course_shells_scanned && currentScanData.course_shells_scanned.length > 1;
             const courseDisplay = multiCourse
                 ? (currentScanData.course_shells_scanned || []).join(', ')
@@ -2587,7 +2591,7 @@
                 return `${n} | ${c} | ${ln} | ${em} | ${tp} | ${dt}`;
             }).join('\n');
 
-            const bodyText = `Dear ${taFullName},
+            const bodyText = `${taSalutation}
 
 I hope you are doing well.
 
@@ -2645,10 +2649,15 @@ ${plainSignature}`;
             const cleanPhone = phone.replace(/[^\d+]/g, '');
             const contactEmail = cfg.contact_email || 'omkar.jagtap@upgrad.com';
 
-            return `
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; color: #1e293b; line-height: 1.6; max-width: 900px; margin: 0 auto; background: #ffffff;">
+            // Compute last name for salutation inside buildHtmlBody
+            const bCleanName = group.ta_name.trim().replace(/^(Dr\.|Doctor|Prof\.|Professor)\s+/i, '').trim();
+            const bNameParts = bCleanName.split(/\s+/);
+            const bLastName = bNameParts.length > 1 ? bNameParts[bNameParts.length - 1] : bNameParts[0];
 
-              <p style="margin: 0 0 14px 0; font-size: 14px; color: #111827;">Hello <strong>${taFullName}</strong>,</p>
+            return `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; color: #1e293b; line-height: 1.6; margin: 0; padding: 0; background: #ffffff; text-align: left;">
+
+              <p style="margin: 0 0 14px 0; font-size: 14px; color: #111827;">Dear <strong>Dr. ${bLastName}</strong>,</p>
 
               <p style="margin: 0 0 14px 0; font-size: 13px; color: #374151;">I hope you are doing well.</p>
 
@@ -2726,7 +2735,8 @@ ${plainSignature}`;
             if (sendBtn) { sendBtn.innerHTML = `<span>${isTest ? 'Sending Test...' : 'Sending...'}</span>`; sendBtn.disabled = true; }
 
             const subjectInput = document.getElementById('draft-subject-input');
-            const subject = subjectInput ? subjectInput.value.trim() : `Automatic_Email_Pending Discussion Forum Queries_${currentScanData.course_code}`;
+            const courseLabel = currentScanData.course_code || currentScanData.course_shell;
+            const subject = subjectInput ? subjectInput.value.trim() : `Discussion Forum Queries - ${courseLabel} - Gentle Reminder`;
             const textarea = document.getElementById('draft-body-textarea');
             const bodyText = textarea ? textarea.value.trim() : '';
             const bodyHtml = buildHtmlBody(bodyText, group);

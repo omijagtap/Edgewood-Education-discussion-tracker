@@ -235,41 +235,25 @@ def send_ta_email():
     from email.mime.text import MIMEText
     from email.utils import formataddr
 
-    # ── Test Mode: redirect to sender's own inbox ──────────────────────────────
+    # ── Test Mode: redirect to sender's own inbox without altering email body ──
     actual_to = sender_email if is_test else to_email
     actual_cc = []           if is_test else [c.strip() for c in cc_emails_raw.replace(';', ',').split(',') if c.strip()]
-    effective_subject = f"[TEST PREVIEW] {subject}" if is_test else subject or "[Action Required] Pending Discussion Forum Queries"
-    test_banner_html = ""
-    test_banner_text = ""
-    if is_test:
-        test_banner_html = """
-        <div style="background:#fef3c7;border:2px dashed #d97706;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-family:sans-serif;">
-          <strong style="color:#92400e;">⚠ TEST PREVIEW — This email was NOT sent to the TA.</strong><br>
-          <span style="font-size:12px;color:#78350f;">Original recipient: <code>{to}</code>. You are previewing how this email renders in your inbox.</span>
-        </div>""".format(to=to_email)
-        test_banner_text = f"\n--- TEST PREVIEW (original recipient: {to_email}) ---\n\n"
+    default_sub = "Discussion Forum Queries - Gentle Reminder"
+    effective_subject = f"TEST_{subject or default_sub}" if is_test else (subject or default_sub)
 
     try:
         msg = MIMEMultipart('alternative')
         msg['Subject'] = effective_subject
         sender_display = data.get('full_name') or "Edgewood Operations"
         msg['From'] = formataddr((sender_display, sender_email))
-        msg['To'] = formataddr(("[TEST] " + ta_name if is_test else ta_name, actual_to))
+        msg['To'] = formataddr((ta_name, actual_to))
         if actual_cc:
             msg['Cc'] = ", ".join(actual_cc)
 
         if body_text:
-            msg.attach(MIMEText(test_banner_text + body_text, 'plain', 'utf-8'))
+            msg.attach(MIMEText(body_text, 'plain', 'utf-8'))
         if body_html:
-            if is_test:
-                import re
-                if '<body' in body_html.lower():
-                    injected_html = re.sub(r'(<body[^>]*>)', r'\1' + test_banner_html, body_html, count=1, flags=re.IGNORECASE)
-                else:
-                    injected_html = test_banner_html + body_html
-            else:
-                injected_html = body_html
-            msg.attach(MIMEText(injected_html, 'html', 'utf-8'))
+            msg.attach(MIMEText(body_html, 'html', 'utf-8'))
 
         context = ssl.create_default_context()
         recipients = [actual_to] + actual_cc
