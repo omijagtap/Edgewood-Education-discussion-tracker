@@ -19,6 +19,7 @@ import re
 import requests
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import sheets_helper
 
 try:
     import openpyxl
@@ -56,55 +57,6 @@ HEADERS      = {"Authorization": f"Bearer {ACCESS_TOKEN}" if ACCESS_TOKEN else "
 SESSION      = requests.Session()
 SESSION.headers.update(HEADERS)
 SCRIPT_DIR   = os.path.dirname(os.path.abspath(__file__))
-
-# Define TA Email addresses to check against (case-insensitive)
-TA_EMAILS = [
-    "AnkPandey@edgewood.edu",
-    "jranjan@edgewood.edu",
-    "pyerneni@edgewood.edu",
-    "nkumari@edgewood.edu",
-    "dkalra@edgewood.edu",
-    "gpatil@edgewood.edu",
-    "skumari@edgewood.edu",
-    "nsharma@edgewood.edu",
-    "RGowda@edgewood.edu",
-    "SSuresh@edgewood.edu",
-    "RRuhal@edgewood.edu",
-    "NDesai@edgewood.edu",
-    "ShaQureshi@edgewood.edu",
-    "KPal@edgewood.edu",
-    "PHarish@edgewood.edu",
-    "mitham@edgewood.edu",
-    "sbasu@edgewood.edu",
-    "RFulzele@edgewood.edu",
-    "avenkateshwara@edgewood.edu",
-    "Skulkarni@edgewood.edu",
-    "dvashishta@edgewood.edu",
-    "nshukla@edgewood.edu",
-    "atutripathi@edgewood.edu",
-    "swagupta@edgewood.edu",
-    "Njha@edgewood.edu",
-    "KGururao@edgewood.edu",
-    "RBhatt@edgewood.edu",
-    "agopalakrishnan@edgewood.edu",
-    "sunkumar@edgewood.edu",
-    "KNakray@edgewood.edu",
-    "Rsaxena@edgewood.edu",
-    "eupadhyay@edgewood.edu",
-    "vkhatavkar@edgewood.edu",
-    "KManey@edgewood.edu",
-    "ddesai@edgewood.edu",
-    "PKumar@edgewood.edu",
-    "abobade@edgewood.edu",
-    "MDutt@edgewood.edu",
-    "mbagali@edgewood.edu",
-    "PMatanhelia@edgewood.edu",
-    "Ashkaur@edgewood.edu",
-    "Ggeorge@edgewood.edu",
-    "sbhat@edgewood.edu",
-]
-# [PERF] Pre-compute as lowercase frozenset for O(1) lookups instead of O(n) per check
-TA_EMAILS_SET = frozenset(e.strip().lower() for e in TA_EMAILS if e)
 
 # ──────────────────────────────────────────────────────────────────
 #  CANVAS API HELPERS
@@ -322,18 +274,25 @@ def calculate_duration_hours(start_iso, end_iso):
 # ──────────────────────────────────────────────────────────────────
 
 def get_cohort_and_course(sis_id, course_name_api):
-    """Extract Cohort (e.g. UED5, UC5) and Course (e.g. EDU 817, BUS 910) from SIS ID or Course Name."""
-    # Cohort Extraction (Supports UED4, UED5, UC5, UC6 etc.)
-    cohort_match = re.search(r"(UED|UC)\d+", sis_id, re.IGNORECASE)
-    cohort       = cohort_match.group(0).upper() if cohort_match else "N/A"
+    """Extract Cohort (e.g. UED10, UED4, UC5) and Course (e.g. EDU 823, EDU 817) from SIS ID or Course Name."""
+    s_clean = str(sis_id).strip()
+    s_clean_fixed = re.sub(r'\bADO\b', 'EDU', s_clean, flags=re.IGNORECASE)
+    s_clean_fixed = s_clean_fixed.replace("ADO_", "EDU_").replace("ADO-", "EDU-")
 
-    # Course Code Extraction (e.g. EDU 817, EDU 862)
-    course_match = re.search(r"^([a-zA-Z]+)[- ]?([0-9]+)", sis_id)
+    # Cohort Extraction (Supports UED10, UED4, UED5, UC5, UC6 etc.)
+    cohort_match = re.search(r"(UED|UC)\s*(\d+)", s_clean_fixed, re.IGNORECASE)
+    if cohort_match:
+        cohort = f"{cohort_match.group(1).upper()}{cohort_match.group(2)}"
+    else:
+        cohort = "N/A"
+
+    # Course Code Extraction (e.g. EDU 823, EDU 817)
+    course_match = re.search(r"([a-zA-Z]{3})[- _]?([0-9]{3})", s_clean_fixed)
     if course_match:
         course_code = f"{course_match.group(1).upper()} {course_match.group(2)}"
     else:
         # Fallback to cleaning the api course name
-        clean_match = re.search(r"^([a-zA-Z]+)\s*([0-9]+)", course_name_api)
+        clean_match = re.search(r"([a-zA-Z]{3})\s*([0-9]{3})", course_name_api)
         if clean_match:
             course_code = f"{clean_match.group(1).upper()} {clean_match.group(2)}"
         else:
@@ -447,7 +406,14 @@ def collect_consolidated_rows(course_id, sis_id, course_name_api):
 
             created_on = format_created_on(topic.get("created_at"))
 
-            ta_replies = []
+            # Evaluate replies for Mode A (Student created discussion topic)
+            assigned_info = sheets_helper.get_assigned_ta(course_code, topic_author_email, topic_author_info.get("student_id"))
+            all_ta_emails = sheets_helper.get_all_ta_emails()
+            assigned_ta_email = assigned_info["ta_email"].lower().strip() if (assigned_info and assigned_info.get("ta_email")) else None
+            assigned_ta_name = assigned_info["ta_name"].strip() if (assigned_info and assigned_info.get("ta_name")) else None
+
+            assigned_ta_replies = []
+            other_ta_replies = []
             all_replies = []
 
             for r in view:
@@ -459,50 +425,74 @@ def collect_consolidated_rows(course_id, sis_id, course_name_api):
                 r_email = (r_u_info.get("email") or r_p_info.get("email") or "").strip().lower()
                 r_time  = r.get("created_at", "")
 
-                is_ta = r_email in TA_EMAILS_SET  # [PERF] O(1) frozenset lookup
-
                 reply_details = {
                     "name": r_name,
                     "email": r_u_info.get("email") or r_p_info.get("email") or "",
                     "time": r_time
                 }
 
-                if is_ta:
-                    ta_replies.append(reply_details)
+                if assigned_ta_email and r_email == assigned_ta_email:
+                    assigned_ta_replies.append(reply_details)
+                elif r_email in all_ta_emails:
+                    other_ta_replies.append(reply_details)
+                elif rid in staff_ids:
+                    other_ta_replies.append(reply_details)
                 all_replies.append(reply_details)
 
-            # Check SLA
             raw_created_on = topic.get("created_at")
-            raw_replied_on = None
-            first_responder = ""
-            if ta_replies:
-                sorted_ta = sorted(ta_replies, key=lambda x: x["time"])
-                raw_replied_on = sorted_ta[0]["time"]
-                first_responder = sorted_ta[0]["name"]
-                replied_on = format_replied_on(raw_replied_on)
-                replied = "Yes"
-            else:
-                replied = "No"
-                replied_on = ""
-
-            duration = calculate_duration_hours(raw_created_on, raw_replied_on)
             topic_lower = topic_title.lower()
             sla_threshold = 48 if ("general" in topic_lower or "raise your hand" in topic_lower) else 72
-            if duration is not None:
-                sla_status = "Delayed Response" if duration > sla_threshold else "On Time Response"
-            else:
-                sla_status = "SLA Not Applicable" if not is_student_created else "Pending Response"
 
-            # Gather all unique TA repliers for the entire thread
-            names = []
-            emails = []
-            for rep in ta_replies:
-                if rep["name"] not in names:
-                    names.append(rep["name"])
-                if rep["email"] and rep["email"] not in emails:
-                    emails.append(rep["email"])
-            rep_names_str  = ", ".join(names)
-            rep_emails_str = ", ".join(emails)
+            if assigned_info:
+                if assigned_ta_replies:
+                    sorted_rep = sorted(assigned_ta_replies, key=lambda x: x["time"])
+                    raw_replied_on = sorted_rep[0]["time"]
+                    first_responder = assigned_ta_name or sorted_rep[0]["name"]
+                    replied_on = format_replied_on(raw_replied_on)
+                    replied = "Yes"
+                    duration = calculate_duration_hours(raw_created_on, raw_replied_on)
+                    sla_status = "Delayed Response" if (duration is not None and duration > sla_threshold) else "On Time Response"
+                    rep_names_str = assigned_ta_name or sorted_rep[0]["name"]
+                    rep_emails_str = assigned_ta_email or sorted_rep[0]["email"]
+                elif other_ta_replies:
+                    sorted_rep = sorted(other_ta_replies, key=lambda x: x["time"])
+                    raw_replied_on = sorted_rep[0]["time"]
+                    other_name = sorted_rep[0]["name"]
+                    first_responder = f"{other_name} (Other TA)"
+                    replied_on = format_replied_on(raw_replied_on)
+                    replied = "Yes (Replied by another TA)"
+                    duration = calculate_duration_hours(raw_created_on, raw_replied_on)
+                    sla_status = "Delayed Response (Other TA)" if (duration is not None and duration > sla_threshold) else "On Time Response (Other TA)"
+                    rep_names_str = f"{other_name} (Other TA)"
+                    rep_emails_str = sorted_rep[0]["email"]
+                else:
+                    replied = "No"
+                    replied_on = ""
+                    duration = ""
+                    sla_status = "Pending Response"
+                    first_responder = ""
+                    rep_names_str = ""
+                    rep_emails_str = ""
+            else:
+                # No TA assigned to learner in ImportData_TA
+                if assigned_ta_replies or other_ta_replies:
+                    sorted_rep = sorted(assigned_ta_replies or other_ta_replies, key=lambda x: x["time"])
+                    raw_replied_on = sorted_rep[0]["time"]
+                    first_responder = f"{sorted_rep[0]['name']} (Unassigned)"
+                    replied_on = format_replied_on(raw_replied_on)
+                    replied = "Yes (No TA Assigned)"
+                    duration = calculate_duration_hours(raw_created_on, raw_replied_on)
+                    sla_status = "Delayed Response" if (duration is not None and duration > sla_threshold) else "On Time Response"
+                    rep_names_str = sorted_rep[0]["name"]
+                    rep_emails_str = sorted_rep[0]["email"]
+                else:
+                    replied = "No (No TA Assigned)"
+                    replied_on = ""
+                    duration = ""
+                    sla_status = "Pending (No TA Assigned)"
+                    first_responder = "Unassigned"
+                    rep_names_str = ""
+                    rep_emails_str = ""
 
             flat_rows.append({
                 "Cohort"            : cohort,
@@ -517,26 +507,22 @@ def collect_consolidated_rows(course_id, sis_id, course_name_api):
                 "Duration (Hours)"  : duration if duration is not None else "",
                 "SLA Status"        : sla_status,
                 "First Responder"   : first_responder,
-                "Replied By (Name)" : rep_names_str,
-                "Replied By (Email)": rep_emails_str
+                "Assigned TA (Needs to Reply)" : assigned_ta_name or "Unassigned",
+                "Assigned TA Email": assigned_ta_email or ""
             })
 
         else:
             # ────────────────────────────────────────────────────────
             # MODE B: Instructor/Staff-created Discussion Topic (e.g., Generative AI Playground)
             # ────────────────────────────────────────────────────────
-            # The top-level entries inside 'view' are student queries.
-            # [FIX] Do NOT add artificial (No student posts yet) dummy rows if not view!
             if not view:
                 continue
 
             for entry in view:
-                # [FIX] Skip deleted Canvas posts and empty placeholders
                 if entry.get("deleted") or (entry.get("message") is None and not entry.get("replies")):
                     continue
 
                 author_id = entry.get("user_id")
-                # IMPORTANT: Skip if no author or entry itself was posted by staff
                 if not author_id or author_id in staff_ids:
                     continue
 
@@ -547,12 +533,9 @@ def collect_consolidated_rows(course_id, sis_id, course_name_api):
                 l_email = (u_info.get("email") or p_info.get("email") or "").strip().lower()
                 l_sid   = u_info.get("student_id", "N/A")
 
-                # [FIX] Skip invalid / placeholder learner records
                 if not l_name or l_name.strip() in ("", "N/A", "Unknown", "User#None", "(No student posts yet)"):
                     continue
 
-                # [FIX] Deduplicate on distinct query entry ID.
-                # If a learner raises TWO distinct queries in the same module/topic, each has a distinct entry ID and is preserved!
                 entry_id = entry.get("id")
                 query_key = ("entry", entry_id) if entry_id else ("entry_fallback", topic_id, author_id, entry.get("created_at"))
                 if query_key in seen_query_keys:
@@ -562,9 +545,15 @@ def collect_consolidated_rows(course_id, sis_id, course_name_api):
                 raw_created = entry.get("created_at")
                 created_on  = format_created_on(raw_created)
 
-                # Check replies to this student post
+                # Check replies to this student post with ImportData_TA mapping
                 raw_replies = entry.get("replies", [])
-                ta_replies = []
+                assigned_info = sheets_helper.get_assigned_ta(course_code, l_email, l_sid)
+                all_ta_emails = sheets_helper.get_all_ta_emails()
+                assigned_ta_email = assigned_info["ta_email"].lower().strip() if (assigned_info and assigned_info.get("ta_email")) else None
+                assigned_ta_name = assigned_info["ta_name"].strip() if (assigned_info and assigned_info.get("ta_name")) else None
+
+                assigned_ta_replies = []
+                other_ta_replies = []
                 all_replies = []
 
                 for rp in raw_replies:
@@ -573,41 +562,67 @@ def collect_consolidated_rows(course_id, sis_id, course_name_api):
                     rp_name = ru_info.get("name") or f"User#{rid}"
                     rp_email = (ru_info.get("email") or "").strip().lower()
 
-                    is_ta = rp_email in TA_EMAILS_SET  # [PERF] O(1) frozenset lookup
                     rep_det = {"name": rp_name, "email": rp_email, "time": rp.get("created_at")}
-                    if is_ta: ta_replies.append(rep_det)
+                    if assigned_ta_email and rp_email == assigned_ta_email:
+                        assigned_ta_replies.append(rep_det)
+                    elif rp_email in all_ta_emails:
+                        other_ta_replies.append(rep_det)
+                    elif rid in staff_ids:
+                        other_ta_replies.append(rep_det)
                     all_replies.append(rep_det)
 
-                raw_replied = None
-                first_responder = ""
-                if ta_replies:
-                    sorted_ta = sorted(ta_replies, key=lambda x: x["time"])
-                    raw_replied = sorted_ta[0]["time"]
-                    first_responder = sorted_ta[0]["name"]
-                    replied_on = format_replied_on(raw_replied)
-                    replied = "Yes"
-                else:
-                    replied = "No"
-                    replied_on = ""
-
-                duration = calculate_duration_hours(raw_created, raw_replied)
                 topic_lower = topic_title.lower()
                 sla_threshold = 48 if ("general" in topic_lower or "raise your hand" in topic_lower) else 72
-                if duration is not None:
-                    sla_status = "Delayed Response" if duration > sla_threshold else "On Time Response"
-                else:
-                    sla_status = "Pending Response"
 
-                # Gather all unique TA repliers for the student post
-                names = []
-                emails = []
-                for rep in ta_replies:
-                    if rep["name"] not in names:
-                        names.append(rep["name"])
-                    if rep["email"] and rep["email"] not in emails:
-                        emails.append(rep["email"])
-                rep_names_str  = ", ".join(names)
-                rep_emails_str = ", ".join(emails)
+                if assigned_info:
+                    if assigned_ta_replies:
+                        sorted_rep = sorted(assigned_ta_replies, key=lambda x: x["time"])
+                        raw_replied = sorted_rep[0]["time"]
+                        first_responder = assigned_ta_name or sorted_rep[0]["name"]
+                        replied_on = format_replied_on(raw_replied)
+                        replied = "Yes"
+                        duration = calculate_duration_hours(raw_created, raw_replied)
+                        sla_status = "Delayed Response" if (duration is not None and duration > sla_threshold) else "On Time Response"
+                        rep_names_str = assigned_ta_name or sorted_rep[0]["name"]
+                        rep_emails_str = assigned_ta_email or sorted_rep[0]["email"]
+                    elif other_ta_replies:
+                        sorted_rep = sorted(other_ta_replies, key=lambda x: x["time"])
+                        raw_replied = sorted_rep[0]["time"]
+                        other_name = sorted_rep[0]["name"]
+                        first_responder = f"{other_name} (Other TA)"
+                        replied_on = format_replied_on(raw_replied)
+                        replied = "Yes (Replied by another TA)"
+                        duration = calculate_duration_hours(raw_created, raw_replied)
+                        sla_status = "Delayed Response (Other TA)" if (duration is not None and duration > sla_threshold) else "On Time Response (Other TA)"
+                        rep_names_str = f"{other_name} (Other TA)"
+                        rep_emails_str = sorted_rep[0]["email"]
+                    else:
+                        replied = "No"
+                        replied_on = ""
+                        duration = ""
+                        sla_status = "Pending Response"
+                        first_responder = ""
+                        rep_names_str = ""
+                        rep_emails_str = ""
+                else:
+                    if assigned_ta_replies or other_ta_replies:
+                        sorted_rep = sorted(assigned_ta_replies or other_ta_replies, key=lambda x: x["time"])
+                        raw_replied = sorted_rep[0]["time"]
+                        first_responder = f"{sorted_rep[0]['name']} (Unassigned)"
+                        replied_on = format_replied_on(raw_replied)
+                        replied = "Yes (No TA Assigned)"
+                        duration = calculate_duration_hours(raw_created, raw_replied)
+                        sla_status = "Delayed Response" if (duration is not None and duration > sla_threshold) else "On Time Response"
+                        rep_names_str = sorted_rep[0]["name"]
+                        rep_emails_str = sorted_rep[0]["email"]
+                    else:
+                        replied = "No (No TA Assigned)"
+                        replied_on = ""
+                        duration = ""
+                        sla_status = "Pending (No TA Assigned)"
+                        first_responder = "Unassigned"
+                        rep_names_str = ""
+                        rep_emails_str = ""
 
                 flat_rows.append({
                     "Cohort"            : cohort,
@@ -622,11 +637,12 @@ def collect_consolidated_rows(course_id, sis_id, course_name_api):
                     "Duration (Hours)"  : duration if duration is not None else "",
                     "SLA Status"        : sla_status,
                     "First Responder"   : first_responder,
-                    "Replied By (Name)" : rep_names_str,
-                    "Replied By (Email)": rep_emails_str
+                    "Assigned TA (Needs to Reply)" : assigned_ta_name or "Unassigned",
+                    "Assigned TA Email": assigned_ta_email or ""
                 })
 
     return flat_rows
+
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -702,9 +718,9 @@ def build_excel_sheet(wb, flat_rows, sis_id, course_name):
     headers = [
         "Cohort", "Course Name", "Topic", "Learner Name", "Student ID", "Learner Email", 
         "Created On", "Replied", "Replied On", "Duration (Hours)", "SLA Status", 
-        "First Responder", "Replied By (Name)", "Replied By (Email)"
+        "First Responder", "Assigned TA (Needs to Reply)", "Assigned TA Email"
     ]
-    col_widths = [10, 15, 30, 20, 15, 25, 18, 10, 20, 15, 18, 20, 25, 30]
+    col_widths = [10, 15, 30, 20, 15, 25, 18, 10, 20, 15, 18, 20, 28, 30]
 
     for ci, (h, w) in enumerate(zip(headers, col_widths), start=1):
         cell           = ws.cell(row=2, column=ci, value=h)
@@ -727,20 +743,34 @@ def build_excel_sheet(wb, flat_rows, sis_id, course_name):
         last_row = 3
     else:
         for ri, r in enumerate(flat_rows, start=3):
-            is_yes   = r["Replied"] == "Yes"
-            is_no    = r["Replied"] == "No"
-            is_delayed = r["SLA Status"] == "Delayed Response"
-            alt_bg   = C_ALT_BG if ri % 2 == 0 else "FFFFFF"
+            val_replied = str(r.get("Replied", "")).strip()
+            val_sla     = str(r.get("SLA Status", "")).strip()
+            is_yes      = val_replied == "Yes"
+            is_no       = val_replied.startswith("No")
+            is_other    = "Other TA" in val_replied or "Replied by another TA" in val_replied
+            is_delayed  = "Delayed" in val_sla
+            is_ontime   = "On Time" in val_sla
+            alt_bg      = C_ALT_BG if ri % 2 == 0 else "FFFFFF"
 
             # Dynamic styling
-            replied_bg = C_YES_BG if is_yes else (C_NO_BG if is_no else alt_bg)
-            replied_fg = C_YES_FG if is_yes else (C_NO_FG if is_no else "7F8C8D")
+            if is_other:
+                replied_bg = "FFF2CC"
+                replied_fg = "7F6000"
+            elif is_yes:
+                replied_bg = C_YES_BG
+                replied_fg = C_YES_FG
+            elif is_no:
+                replied_bg = C_NO_BG
+                replied_fg = C_NO_FG
+            else:
+                replied_bg = alt_bg
+                replied_fg = "7F8C8D"
 
             sla_bg = alt_bg
             sla_fg = "000000"
             if is_delayed:
                 sla_bg = "FFC7CE"; sla_fg = "9C0006"
-            elif r["SLA Status"] == "On Time Response":
+            elif is_ontime:
                 sla_bg = "C6EFCE"; sla_fg = "006100"
 
             row_cells = [
@@ -756,8 +786,8 @@ def build_excel_sheet(wb, flat_rows, sis_id, course_name):
                 (r["Duration (Hours)"],   "center", alt_bg, "000000", False),
                 (r["SLA Status"],         "center", sla_bg, sla_fg, True),
                 (r["First Responder"],    "left",   alt_bg, "000000", True),
-                (r["Replied By (Name)"],  "left",   alt_bg, "000000", False),
-                (r["Replied By (Email)"], "left",   alt_bg, "000000", False)
+                (r.get("Assigned TA (Needs to Reply)", r.get("Replied By (Name)", "")),  "left",   alt_bg, "000000", False),
+                (r.get("Assigned TA Email", r.get("Replied By (Email)", "")), "left",   alt_bg, "000000", False)
             ]
 
             for ci, (val, align, bg, fg, bold) in enumerate(row_cells, start=1):
@@ -775,7 +805,7 @@ def build_excel_sheet(wb, flat_rows, sis_id, course_name):
     # Calculate Metrics
     unique_learners = len(set(r["Learner Name"] for r in flat_rows if r.get("Learner Name") and r["Learner Name"] not in ("(No student posts yet)", "N/A", "Unknown", "User#None")))
     total_queries   = len(flat_rows)
-    total_replied   = len([r for r in flat_rows if r.get("Replied") == "Yes"])
+    total_replied   = len([r for r in flat_rows if str(r.get("Replied", "")).startswith("Yes") or "replied" in str(r.get("Replied", "")).lower()])
     durations       = [r["Duration (Hours)"] for r in flat_rows if isinstance(r["Duration (Hours)"], (int, float))]
     avg_course_time = round(sum(durations)/len(durations), 2) if durations else 0
 

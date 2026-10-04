@@ -1,9 +1,11 @@
 import os
 import io
+import re
 import time
 import uuid
 import threading
 import builtins
+from datetime import datetime
 import openpyxl
 from flask import Flask, render_template, request, send_file, jsonify, redirect, url_for
 import Disussion_Automate as da
@@ -60,17 +62,20 @@ def run_audit(task_id, course_codes_input):
 
         # Fetch latest TA directory from Google Sheet to ensure new TAs are immediately active
         task_progress[task_id] = "Syncing Active TA Directory from Google Sheet..."
-        sheets_helper.get_ta_emails(force_refresh=True)
+        sheets_helper.get_import_data_ta(force_refresh=True)
 
         wb = openpyxl.Workbook()
         processed_count = 0
 
         for sis_id in sis_ids:
-            # Education Tracker specific filter
-            if not sis_id.upper().startswith("EDU"):
+            # Education Tracker specific filter (handles ADO typo / speech-to-text)
+            clean_sis = sis_id.strip()
+            clean_sis_fixed = re.sub(r'\bADO\b', 'EDU', clean_sis, flags=re.IGNORECASE).replace("ADO_", "EDU_").replace("ADO-", "EDU-")
+            if not clean_sis_fixed.upper().startswith("EDU"):
                 task_progress[task_id] = f"Skipping {sis_id} (Not an Education course)."
                 time.sleep(1)
                 continue
+            sis_id = clean_sis_fixed
 
             task_progress[task_id] = f"Locating Course: {sis_id}..."
             course = da.find_course(sis_id)
@@ -173,6 +178,119 @@ def api_dashboard():
     except Exception as e:
         original_print(f"Dashboard data fetch failed: {e}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/verify-credentials', methods=['POST'])
+def verify_credentials():
+    data = request.json or {}
+    sender_email = (data.get('sender_email') or '').strip()
+    app_password = (data.get('app_password') or '').strip().replace(' ', '')
+    if not sender_email or not app_password:
+        return jsonify({"valid": False, "error": "Email and App Password are required."}), 400
+
+    import smtplib, ssl
+    try:
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=10) as server:
+            server.login(sender_email, app_password)
+        return jsonify({"valid": True, "message": "Credentials verified via Google SMTP."})
+    except smtplib.SMTPAuthenticationError:
+        return jsonify({"valid": False, "error": "Authentication failed. Check your email or 16-character Google App Password."}), 401
+    except Exception as e:
+        return jsonify({"valid": False, "error": f"Verification error: {str(e)}"}), 500
+
+@app.route('/api/scan-pending-ta-emails', methods=['POST'])
+def scan_pending_ta_emails():
+    data = request.json or {}
+    course_shell = (data.get('course_shell') or '').strip()
+    if not course_shell:
+        return jsonify({"error": "Please provide a valid Course Shell ID."}), 400
+
+    try:
+        summary = sheets_helper.get_pending_ta_summary(course_shell)
+        return jsonify(summary)
+    except Exception as e:
+        original_print(f"Error scanning pending TA emails: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/send-ta-email', methods=['POST'])
+def send_ta_email():
+    data = request.json or {}
+    sender_email  = (data.get('sender_email') or '').strip()
+    app_password  = (data.get('app_password') or '').strip().replace(' ', '')
+    to_email      = (data.get('to_email') or '').strip()
+    cc_emails_raw = (data.get('cc_emails') or '').strip()
+    subject       = (data.get('subject') or '').strip()
+    body_html     = data.get('body_html', '')
+    body_text     = data.get('body_text', '')
+    ta_name       = (data.get('ta_name') or 'TA').strip()
+    is_test       = bool(data.get('is_test', False))
+
+    if not sender_email or not app_password:
+        return jsonify({"success": False, "error": "Sender email and App Password must be configured in Settings."}), 400
+    if not to_email:
+        return jsonify({"success": False, "error": "Recipient TA email is required."}), 400
+
+    import smtplib, ssl
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from email.utils import formataddr
+
+    # ── Test Mode: redirect to sender's own inbox ──────────────────────────────
+    actual_to = sender_email if is_test else to_email
+    actual_cc = []           if is_test else [c.strip() for c in cc_emails_raw.replace(';', ',').split(',') if c.strip()]
+    effective_subject = f"[TEST PREVIEW] {subject}" if is_test else subject or "[Action Required] Pending Discussion Forum Queries"
+    test_banner_html = ""
+    test_banner_text = ""
+    if is_test:
+        test_banner_html = """
+        <div style="background:#fef3c7;border:2px dashed #d97706;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-family:sans-serif;">
+          <strong style="color:#92400e;">⚠ TEST PREVIEW — This email was NOT sent to the TA.</strong><br>
+          <span style="font-size:12px;color:#78350f;">Original recipient: <code>{to}</code>. You are previewing how this email renders in your inbox.</span>
+        </div>""".format(to=to_email)
+        test_banner_text = f"\n--- TEST PREVIEW (original recipient: {to_email}) ---\n\n"
+
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = effective_subject
+        sender_display = data.get('full_name') or "Edgewood Operations"
+        msg['From'] = formataddr((sender_display, sender_email))
+        msg['To'] = formataddr(("[TEST] " + ta_name if is_test else ta_name, actual_to))
+        if actual_cc:
+            msg['Cc'] = ", ".join(actual_cc)
+
+        if body_text:
+            msg.attach(MIMEText(test_banner_text + body_text, 'plain', 'utf-8'))
+        if body_html:
+            if is_test:
+                import re
+                if '<body' in body_html.lower():
+                    injected_html = re.sub(r'(<body[^>]*>)', r'\1' + test_banner_html, body_html, count=1, flags=re.IGNORECASE)
+                else:
+                    injected_html = test_banner_html + body_html
+            else:
+                injected_html = body_html
+            msg.attach(MIMEText(injected_html, 'html', 'utf-8'))
+
+        context = ssl.create_default_context()
+        recipients = [actual_to] + actual_cc
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=15) as server:
+            server.login(sender_email, app_password)
+            server.sendmail(sender_email, recipients, msg.as_string())
+
+        now_str = datetime.now().strftime("%I:%M:%S %p")
+        return jsonify({
+            "success": True,
+            "is_test": is_test,
+            "recipient": actual_to,
+            "original_recipient": to_email,
+            "cc": actual_cc,
+            "sent_at": now_str,
+            "message": f"[TEST] Email preview sent to {sender_email}" if is_test else f"Email successfully sent to {ta_name} ({to_email})"
+        })
+    except smtplib.SMTPAuthenticationError:
+        return jsonify({"success": False, "error": "SMTP Authentication failed. Check your App Password."}), 401
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.getenv("PORT", 5000))
