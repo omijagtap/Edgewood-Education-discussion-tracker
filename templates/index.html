@@ -2474,23 +2474,23 @@
                 }`;
                 item.onclick = () => selectActiveTa(idx);
 
-                let statusBadgeHtml = `<span id="ta-status-badge-${idx}" class="text-[9px] text-white/40 font-mono">Draft</span>`;
+                let statusBadgeHtml = `<span id="ta-status-badge-${idx}" class="text-[9px] text-white/40 font-mono whitespace-nowrap">Draft</span>`;
                 if (group.status === 'sent') {
-                    statusBadgeHtml = `<span id="ta-status-badge-${idx}" class="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded-full">✔ Sent</span>`;
+                    statusBadgeHtml = `<span id="ta-status-badge-${idx}" class="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">✔ Sent</span>`;
                 } else if (group.status === 'test_sent') {
-                    statusBadgeHtml = `<span id="ta-status-badge-${idx}" class="inline-flex items-center gap-1 text-[9px] font-bold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded-full">✔ Test Sent</span>`;
+                    statusBadgeHtml = `<span id="ta-status-badge-${idx}" class="inline-flex items-center gap-1 text-[9px] font-bold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">✔ Test Sent</span>`;
                 }
 
                 item.innerHTML = `
-                    <div class="flex items-center justify-between mb-1">
-                        <span class="text-xs font-bold text-white leading-tight truncate pr-1">${group.ta_name}</span>
-                        <span class="text-[9px] px-1.5 py-0.5 rounded-full font-mono font-bold flex-shrink-0 ${
+                    <div class="flex items-center justify-between gap-1.5 mb-1.5">
+                        <span class="text-xs font-bold text-white leading-tight truncate min-w-0" title="${group.ta_name}">${group.ta_name}</span>
+                        <span id="ta-status-slot-${idx}" class="flex-shrink-0">${statusBadgeHtml}</span>
+                    </div>
+                    <div class="flex items-center justify-between gap-1.5 text-[10px] text-white/40 font-mono">
+                        <span class="truncate min-w-0" title="${group.ta_email || 'No email assigned'}">${group.ta_email || 'No email assigned'}</span>
+                        <span class="text-[9px] px-1.5 py-0.5 rounded-full font-mono font-bold flex-shrink-0 whitespace-nowrap ${
                             group.queries.length > 5 ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                         }">${group.queries.length} Pending</span>
-                    </div>
-                    <div class="flex items-center justify-between text-[10px] text-white/40 font-mono">
-                        <span class="truncate max-w-[140px]">${group.ta_email || 'No email assigned'}</span>
-                        <span id="ta-status-slot-${idx}">${statusBadgeHtml}</span>
                     </div>
                 `;
                 rosterEl.appendChild(item);
@@ -2762,7 +2762,7 @@ ${plainSignature}`;
                         updateStatusBar(`Test preview delivered to ${cfg.sender_email}`, 'success');
                         const slot = document.getElementById(`ta-status-slot-${idx}`);
                         if (slot) {
-                            slot.innerHTML = `<span id="ta-status-badge-${idx}" class="inline-flex items-center gap-1 text-[9px] font-bold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded-full">✔ Test Sent</span>`;
+                            slot.innerHTML = `<span id="ta-status-badge-${idx}" class="inline-flex items-center gap-1 text-[9px] font-bold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">✔ Test Sent</span>`;
                         }
                     } else {
                         group.status = 'sent';
@@ -2771,7 +2771,7 @@ ${plainSignature}`;
                         updateStatusBar(`Email delivered to ${group.ta_name} (${group.ta_email})`, 'success');
                         const slot = document.getElementById(`ta-status-slot-${idx}`);
                         if (slot) {
-                            slot.innerHTML = `<span id="ta-status-badge-${idx}" class="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded-full">✔ Sent</span>`;
+                            slot.innerHTML = `<span id="ta-status-badge-${idx}" class="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">✔ Sent</span>`;
                         }
                     }
                     return true;
@@ -3236,8 +3236,8 @@ ${plainSignature}`;
 
                 <!-- Results Dual Pane (Full Height, Side-by-Side) -->
                 <div id="email-scan-results" class="hidden h-full flex flex-col lg:flex-row gap-3 min-h-0 overflow-hidden">
-                    <!-- Left Pane: Assigned TAs (width ~300px) -->
-                    <div class="w-full lg:w-72 xl:w-80 flex-shrink-0 flex flex-col h-full overflow-hidden ultra-glass p-3 rounded-xl border border-white/10">
+                    <!-- Left Pane: Assigned TAs (width 320px - 384px) -->
+                    <div class="w-full lg:w-80 xl:w-96 flex-shrink-0 flex flex-col h-full overflow-hidden ultra-glass p-3 rounded-xl border border-white/10">
                         <div class="flex items-center justify-between pb-2 mb-2 border-b border-white/[0.08]">
                             <span class="text-[11px] font-bold text-white/70 uppercase tracking-wider">Assigned TAs</span>
                             <span id="ta-count-badge" class="text-[10px] bg-white/10 px-2 py-0.5 rounded-full text-white/80 font-mono">0 TAs</span>
