@@ -714,7 +714,89 @@ def build_excel_sheet(wb, flat_rows, sis_id, course_name):
     t.alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[1].height = 28
 
-    # ── Column Headers ─────────────────────────────────────────────
+    # ── Summary Analysis Table (ABOVE LEARNER DETAILS TABLE) ─────────
+    # Calculate Metrics
+    valid_rows = [r for r in flat_rows if r.get("Learner Name") and r["Learner Name"] not in ("(No student posts yet)", "N/A", "Unknown", "User#None")]
+    unique_learners = len(set(r["Learner Name"] for r in valid_rows))
+    total_queries   = len(valid_rows)
+    total_replied   = len([r for r in valid_rows if str(r.get("Replied", "")).startswith("Yes") or "replied" in str(r.get("Replied", "")).lower()])
+    pending_queries = len([r for r in valid_rows if str(r.get("Replied", "")).startswith("No")])
+    durations       = [r["Duration (Hours)"] for r in valid_rows if isinstance(r.get("Duration (Hours)"), (int, float))]
+    avg_course_time = round(sum(durations)/len(durations), 2) if durations else 0
+
+    within_sla  = len([r for r in valid_rows if "On Time" in str(r.get("SLA Status", ""))])
+    outside_sla = len([r for r in valid_rows if "Delayed" in str(r.get("SLA Status", ""))])
+
+    # Pending queries average elapsed duration (hours)
+    now_dt = datetime.now()
+    pending_durs = []
+    for r in valid_rows:
+        if str(r.get("Replied", "")).startswith("No"):
+            created_dt = sheets_helper.parse_date_string(r.get("Created On"))
+            if created_dt:
+                p_hrs = max(0.0, round((now_dt - created_dt).total_seconds() / 3600.0, 1))
+                pending_durs.append(p_hrs)
+    avg_pending_time = round(sum(pending_durs)/len(pending_durs), 2) if pending_durs else 0
+
+    # TA Breakdown Calculation - includes assigned TAs so pending queries are accounted for!
+    ta_stats = {}
+    for r in valid_rows:
+        assigned_ta = (r.get("Assigned TA (Needs to Reply)") or "").strip()
+        first_resp  = (r.get("First Responder") or "").strip()
+        sla_st      = str(r.get("SLA Status", "")).strip()
+        rep_val     = str(r.get("Replied", "")).strip()
+        dur_val     = r.get("Duration (Hours)")
+
+        primary_ta = assigned_ta if (assigned_ta and assigned_ta != "Unassigned") else (first_resp or "Unassigned")
+        if primary_ta not in ta_stats:
+            ta_stats[primary_ta] = {"pending": 0, "replies": 0, "ontime": 0, "delayed": 0, "durs": []}
+
+        if rep_val.startswith("No") or "Pending" in sla_st:
+            ta_stats[primary_ta]["pending"] += 1
+        else:
+            resp_key = first_resp if first_resp else primary_ta
+            if resp_key not in ta_stats:
+                ta_stats[resp_key] = {"pending": 0, "replies": 0, "ontime": 0, "delayed": 0, "durs": []}
+            ta_stats[resp_key]["replies"] += 1
+            if "On Time" in sla_st:
+                ta_stats[resp_key]["ontime"] += 1
+            if "Delayed" in sla_st:
+                ta_stats[resp_key]["delayed"] += 1
+            if isinstance(dur_val, (int, float)):
+                ta_stats[resp_key]["durs"].append(dur_val)
+
+    # Table 1: Course Overview (Rows 3 to 6 - JUST ABOVE LEARNER DETAILS)
+    sum_start = 3
+    ws.merge_cells(f"A{sum_start}:F{sum_start}")
+    sh1 = ws[f"A{sum_start}"]; sh1.value = "COURSE OVERVIEW"; sh1.font = Font(bold=True, color="FFFFFF"); sh1.fill = PatternFill("solid", fgColor="4472C4"); sh1.alignment = Alignment(horizontal="center")
+    for col in range(1, 7): ws.cell(row=sum_start, column=col).border = thin_border()
+
+    # Category Headers
+    c_tp = ws.cell(row=sum_start+1, column=1, value="Total Post"); c_tp.font = Font(bold=True, color="FFFFFF"); c_tp.fill = PatternFill("solid", fgColor="1F3864"); c_tp.alignment = Alignment(horizontal="center"); c_tp.border = thin_border()
+    ws.merge_cells(f"B{sum_start+1}:D{sum_start+1}")
+    c_tr = ws.cell(row=sum_start+1, column=2, value="Total Response"); c_tr.font = Font(bold=True, color="375623"); c_tr.fill = PatternFill("solid", fgColor="E2EFDA"); c_tr.alignment = Alignment(horizontal="center")
+    for col in range(2, 5): ws.cell(row=sum_start+1, column=col).border = thin_border()
+    ws.merge_cells(f"E{sum_start+1}:F{sum_start+1}")
+    c_pr = ws.cell(row=sum_start+1, column=5, value="Pending Response"); c_pr.font = Font(bold=True, color="C00000"); c_pr.fill = PatternFill("solid", fgColor="FCE4D6"); c_pr.alignment = Alignment(horizontal="center")
+    for col in range(5, 7): ws.cell(row=sum_start+1, column=col).border = thin_border()
+
+    # Sub-Headers
+    sub_hdrs = ["Total Queries", "Within SLA", "Outside SLA", "Avg. Response HR", "Pending Count", "Avg"]
+    for ci, h in enumerate(sub_hdrs, start=1):
+        sc = ws.cell(row=sum_start+2, column=ci, value=h)
+        sc.font = Font(bold=True, size=9); sc.fill = PatternFill("solid", fgColor="F2F2F2"); sc.alignment = Alignment(horizontal="center"); sc.border = thin_border()
+
+    # Data Values
+    data_vals = [total_queries, within_sla, outside_sla, avg_course_time, pending_queries, avg_pending_time]
+    for ci, val in enumerate(data_vals, start=1):
+        dc = ws.cell(row=sum_start+3, column=ci, value=val)
+        dc.font = Font(bold=(ci==1 or ci==5)); dc.alignment = Alignment(horizontal="center"); dc.border = thin_border()
+
+    # Row 7 is a spacer row
+    ws.row_dimensions[7].height = 12
+
+    # ── Column Headers for Learner Details Table (Row 8) ───────────
+    hdr_row = 8
     headers = [
         "Cohort", "Course Name", "Topic", "Learner Name", "Student ID", "Learner Email", 
         "Created On", "Replied", "Replied On", "Duration (Hours)", "SLA Status", 
@@ -723,26 +805,26 @@ def build_excel_sheet(wb, flat_rows, sis_id, course_name):
     col_widths = [10, 15, 30, 20, 15, 25, 18, 10, 20, 15, 18, 20, 28, 30]
 
     for ci, (h, w) in enumerate(zip(headers, col_widths), start=1):
-        cell           = ws.cell(row=2, column=ci, value=h)
+        cell           = ws.cell(row=hdr_row, column=ci, value=h)
         cell.font      = CACHED_HDR_FONT   # [PERF] reuse cached style
         cell.fill      = CACHED_HDR_FILL
         cell.alignment = CACHED_HDR_ALIGN
         cell.border    = CACHED_BORDER
         ws.column_dimensions[get_column_letter(ci)].width = w
 
-    ws.row_dimensions[2].height = 24
+    ws.row_dimensions[hdr_row].height = 24
 
-    # ── Data Row Injection ─────────────────────────────────────────
+    # ── Data Row Injection (Row 9+) ────────────────────────────────
     if not flat_rows:
-        ws.merge_cells("A3:N3")
-        empty = ws["A3"]
+        ws.merge_cells("A9:N9")
+        empty = ws["A9"]
         empty.value     = "No discussion boards or learner posts found in this course."
         empty.font      = Font(italic=True, color="808080")
         empty.alignment = Alignment(horizontal="center", vertical="center")
-        ws.row_dimensions[3].height = 24
-        last_row = 3
+        ws.row_dimensions[9].height = 24
+        last_row = 9
     else:
-        for ri, r in enumerate(flat_rows, start=3):
+        for ri, r in enumerate(flat_rows, start=9):
             val_replied = str(r.get("Replied", "")).strip()
             val_sla     = str(r.get("SLA Status", "")).strip()
             is_yes      = val_replied == "Yes"
@@ -799,55 +881,13 @@ def build_excel_sheet(wb, flat_rows, sis_id, course_name):
             ws.row_dimensions[ri].height = 20
             last_row = ri
 
-    # ── Summary Analysis Table ─────────────────────────────────────
-    sum_start = last_row + 3
-    
-    # Calculate Metrics
-    unique_learners = len(set(r["Learner Name"] for r in flat_rows if r.get("Learner Name") and r["Learner Name"] not in ("(No student posts yet)", "N/A", "Unknown", "User#None")))
-    total_queries   = len(flat_rows)
-    total_replied   = len([r for r in flat_rows if str(r.get("Replied", "")).startswith("Yes") or "replied" in str(r.get("Replied", "")).lower()])
-    durations       = [r["Duration (Hours)"] for r in flat_rows if isinstance(r["Duration (Hours)"], (int, float))]
-    avg_course_time = round(sum(durations)/len(durations), 2) if durations else 0
-
-    # TA Breakdown Calculation
-    ta_stats = {}
-    for r in flat_rows:
-        ta_name = r.get("First Responder")
-        if not ta_name: continue
-        if ta_name not in ta_stats:
-            ta_stats[ta_name] = {"replies": 0, "ontime": 0, "delayed": 0, "durs": []}
-        
-        ta_stats[ta_name]["replies"] += 1
-        if r["SLA Status"] == "On Time Response": ta_stats[ta_name]["ontime"] += 1
-        if r["SLA Status"] == "Delayed Response": ta_stats[ta_name]["delayed"] += 1
-        if isinstance(r["Duration (Hours)"], (int, float)):
-            ta_stats[ta_name]["durs"].append(r["Duration (Hours)"])
-
-    # Table 1: Course Overview
-    ws.merge_cells(f"A{sum_start}:D{sum_start}")
-    sh1 = ws[f"A{sum_start}"]; sh1.value = "COURSE OVERVIEW"; sh1.font = Font(bold=True, color="FFFFFF"); sh1.fill = PatternFill("solid", fgColor="4472C4"); sh1.alignment = Alignment(horizontal="center")
-    sh1.border = thin_border()
-    
-    overview = [
-        ("Total Unique Learners", unique_learners),
-        ("Total Queries Found", total_queries),
-        ("Total Replied (TAs)", total_replied),
-        ("Avg Course Response Time (Hrs)", avg_course_time)
-    ]
-    for i, (lab, val) in enumerate(overview, start=1):
-        c1 = ws.cell(row=sum_start+i, column=1, value=lab); c1.font = Font(bold=True); c1.border = thin_border()
-        c2 = ws.cell(row=sum_start+i, column=2, value=val); c2.alignment = Alignment(horizontal="center"); c2.border = thin_border()
-        ws.merge_cells(f"B{sum_start+i}:D{sum_start+i}")
-        # Apply border to merged cells
-        for col in range(2, 5): ws.cell(row=sum_start+i, column=col).border = thin_border()
-
-    # Table 2: TA Performance Breakdown
-    ta_start = sum_start + 6
+    # ── Table 2: TA Performance Breakdown (below learner rows) ─────
+    ta_start = last_row + 2
     ws.merge_cells(f"A{ta_start}:G{ta_start}")
     sh2 = ws[f"A{ta_start}"]; sh2.value = "TA PERFORMANCE BREAKDOWN (TREND ANALYSIS)"; sh2.font = Font(bold=True, color="FFFFFF"); sh2.fill = PatternFill("solid", fgColor="C00000"); sh2.alignment = Alignment(horizontal="center")
-    sh2.border = thin_border()
+    for col in range(1, 8): ws.cell(row=ta_start, column=col).border = thin_border()
     
-    ta_hdrs = ["TA Name", "Replies", "On-Time", "Delayed", "Avg Time (Hrs)", "SLA Violation %"]
+    ta_hdrs = ["TA Name", "Pending Response", "Replies", "On-Time", "Delayed", "Avg Time (Hrs)", "SLA Violation %"]
     for ci, h in enumerate(ta_hdrs, start=1):
         c = ws.cell(row=ta_start+1, column=ci, value=h)
         c.font = Font(bold=True); c.fill = PatternFill("solid", fgColor="D9D9D9"); c.alignment = Alignment(horizontal="center"); c.border = thin_border()
@@ -858,6 +898,7 @@ def build_excel_sheet(wb, flat_rows, sis_id, course_name):
         
         cells = [
             (name, "left"),
+            (s["pending"], "center"),
             (s["replies"], "center"),
             (s["ontime"], "center"),
             (s["delayed"], "center"),
@@ -868,7 +909,7 @@ def build_excel_sheet(wb, flat_rows, sis_id, course_name):
             c = ws.cell(row=ta_start+i, column=ci, value=v)
             c.alignment = Alignment(horizontal=a); c.border = thin_border()
 
-    ws.freeze_panes = "A3"
+    ws.freeze_panes = "A9"
 
 
 # ──────────────────────────────────────────────────────────────────

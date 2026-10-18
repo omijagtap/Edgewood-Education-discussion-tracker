@@ -2263,6 +2263,23 @@
             if (modal) {
                 modal.classList.remove('hidden');
                 document.body.style.overflow = 'hidden';
+
+                // Dynamically update preset buttons based on loaded dashboard courses
+                const presetContainer = document.getElementById('email-preset-buttons-container');
+                if (presetContainer && allData && allData.courses && allData.courses.length > 0) {
+                    const uniqueCourses = [...new Set(allData.courses)].filter(c => c && c !== 'N/A');
+                    if (uniqueCourses.length > 0) {
+                        let btnsHtml = '';
+                        uniqueCourses.forEach(c => {
+                            const label = c.length > 12 ? c.substring(0, 10) + '..' : c;
+                            btnsHtml += `<button type="button" onclick="selectEmailPreset('${c}')" class="text-[10px] font-semibold px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 transition-all" title="${c}">${label}</button>`;
+                        });
+                        btnsHtml += `<button type="button" onclick="selectEmailPreset('ALL')" class="text-[10px] font-semibold px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 transition-all">ALL</button>`;
+                        btnsHtml += `<button type="button" onclick="addCustomEmailPreset()" class="text-[10px] font-bold px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-all" title="Add another course shell">+</button>`;
+                        presetContainer.innerHTML = btnsHtml;
+                    }
+                }
+
                 // Pre-fill course shell if input on main page had something
                 const mainCourseInput = document.getElementById('course_codes');
                 const emailCourseInput = document.getElementById('email-search-course-shell');
@@ -2445,7 +2462,7 @@
             if (emptyEl) emptyEl.classList.add('hidden');
 
             const kpiCourse = document.getElementById('kpi-scan-course');
-            if (kpiCourse) kpiCourse.innerText = data.course_code || '--';
+            if (kpiCourse) kpiCourse.innerText = data.course_shell || data.course_code || '--';
             const kpiPending = document.getElementById('kpi-scan-pending');
             if (kpiPending) kpiPending.innerText = data.total_pending || 0;
             const kpiTas = document.getElementById('kpi-scan-tas');
@@ -2523,15 +2540,14 @@
             const pageIndicator = document.getElementById('ta-pagination-indicator');
             if (pageIndicator) pageIndicator.innerText = `${idx + 1} of ${totalTas}`;
 
-            // Top meta header (matching Screenshot 2)
-            const courseLabel = currentScanData.course_code || currentScanData.course_shell;
+            // Top meta header without TA or long names
             const topMetaTitle = document.getElementById('draft-top-meta-title');
             if (topMetaTitle) {
-                topMetaTitle.innerText = `${group.ta_name} | Discussion Forum Queries - ${courseLabel} - Gentle Reminder | ${group.queries.length} Pending`;
+                topMetaTitle.innerText = `Gentle Reminder | Discussion Forum Queries | ${group.queries.length} Pending`;
                 topMetaTitle.title = topMetaTitle.innerText;
             }
 
-            // Sender / Recipient / SPOC Bar (matching Screenshot 2)
+            // Sender / Recipient / SPOC Bar
             const senderInitial = (cfg.full_name || 'O').charAt(0).toUpperCase();
             const avatarInitialEl = document.getElementById('sender-avatar-initial');
             if (avatarInitialEl) avatarInitialEl.innerText = senderInitial;
@@ -2548,9 +2564,9 @@
             const barSpoc = document.getElementById('bar-spoc-tag');
             if (barSpoc) barSpoc.innerText = `SPOC: ${cfg.full_name ? cfg.full_name.split(' ')[0] : 'Omkar'}`;
 
-            // Subject Line: Discussion Forum Queries - <Course> - Gentle Reminder
+            // Subject Line: Clean format "Gentle Reminder | Discussion Forum Queries" (no TA name, no course shell)
             const subjectInput = document.getElementById('draft-subject-input');
-            const defaultSubject = `Discussion Forum Queries - ${courseLabel} - Gentle Reminder`;
+            const defaultSubject = `Gentle Reminder | Discussion Forum Queries`;
             if (subjectInput) subjectInput.value = defaultSubject;
 
             // TA name helpers: extract last name for academic salutation
@@ -2559,10 +2575,46 @@
             const taNameParts = taCleanName.split(/\s+/);
             const taLastName = taNameParts.length > 1 ? taNameParts[taNameParts.length - 1] : taNameParts[0];
             const taSalutation = `Dear Dr. ${taLastName},`;
+            const courseShellLabel = currentScanData.course_shell || currentScanData.course_code || '';
             const multiCourse = currentScanData.course_shells_scanned && currentScanData.course_shells_scanned.length > 1;
             const courseDisplay = multiCourse
                 ? (currentScanData.course_shells_scanned || []).join(', ')
-                : currentScanData.course_code;
+                : courseShellLabel;
+
+            const overview = currentScanData.course_overview || {
+                total_posts: group.queries.length,
+                total_replied: 0,
+                within_sla: 0,
+                outside_sla: 0,
+                avg_response_hr: 0,
+                pending_count: currentScanData.total_pending || group.queries.length,
+                avg_pending_hr: 0
+            };
+
+            // Format the Discussion Summary as an aligned center-aligned table
+            const sumTblHeader1 = `+-------------+---------------------------------------+-----------------------+`;
+            const sumTblCategory= `| Total Post  |            Total Response             |   Pending Response    |`;
+            const sumTblDivider = `+-------------+-----------+-------------+-------------+---------------+-------+`;
+            const sumTblSubHdrs = `| Total Query | Within SLA| Outside SLA | Avg Resp HR | Pending Count |  Avg  |`;
+            const sumTblSubDiv  = `+-------------+-----------+-------------+-------------+---------------+-------+`;
+            const col1 = String(overview.total_posts).padEnd(11);
+            const col2 = String(overview.within_sla).padEnd(9);
+            const col3 = String(overview.outside_sla).padEnd(11);
+            const col4 = (String(overview.avg_response_hr) + ' hrs').padEnd(11);
+            const col5 = String(overview.pending_count).padEnd(13);
+            const col6 = (String(overview.avg_pending_hr) + ' hrs').padEnd(5);
+            const sumTblData    = `| ${col1} | ${col2} | ${col3} | ${col4} | ${col5} | ${col6} |`;
+            const sumTblBottom  = `+-------------+-----------+-------------+-------------+---------------+-------+`;
+
+            const overviewTableText = [
+                sumTblHeader1,
+                sumTblCategory,
+                sumTblDivider,
+                sumTblSubHdrs,
+                sumTblSubDiv,
+                sumTblData,
+                sumTblBottom
+            ].join('\n');
 
             // Plain text signature
             const plainSignature = [
@@ -2578,12 +2630,12 @@
             ].join('\n');
 
             // Plain text table
-            const tableHeader = `#  | Course      | Learner Name          | Student Email                  | Discussion Topic                              | Date Raised`;
+            const tableHeader = `#  | Course Shell                | Learner Name          | Student Email                  | Discussion Topic                              | Date Raised`;
             const tableDivider = `-`.repeat(tableHeader.length);
             const tableRows = group.queries.map((q, i) => {
-                const course = q.course_code || q.course_shell || currentScanData.course_code;
+                const course = q.course_shell || q.course_code || courseShellLabel;
                 const n = String(i + 1).padEnd(2);
-                const c = course.padEnd(11).slice(0, 11);
+                const c = course.padEnd(27).slice(0, 27);
                 const ln = (q.learner_name || '').padEnd(21).slice(0, 21);
                 const em = (q.learner_email || '').padEnd(30).slice(0, 30);
                 const tp = (q.topic || '').padEnd(45).slice(0, 45);
@@ -2591,11 +2643,17 @@
                 return `${n} | ${c} | ${ln} | ${em} | ${tp} | ${dt}`;
             }).join('\n');
 
+            // Discussion Summary is placed at the TOP right after the introductory reminder
             const bodyText = `${taSalutation}
 
 I hope you are doing well.
 
-This is a general reminder that the following learners assigned to you have raised queries on the Discussion Board for the course ${courseDisplay}, and currently have pending queries awaiting a response on the Canvas Discussion Board. Please find below the summary of pending queries:
+This is a general reminder that the following learners assigned to you have raised queries on the Discussion Board for the course ${courseDisplay}, and currently have pending queries awaiting a response on the Canvas Discussion Board.
+
+DISCUSSION SUMMARY:
+${overviewTableText}
+
+Please find below the summary of pending learner queries:
 
 ${tableHeader}
 ${tableDivider}
@@ -2607,7 +2665,7 @@ ${plainSignature}`;
             const textarea = document.getElementById('draft-body-textarea');
             if (textarea) textarea.value = bodyText;
 
-            // Render live clean corporate HTML email preview (matching Screenshot 2)
+            // Render live clean corporate HTML email preview
             const previewContainer = document.getElementById('email-rendered-preview-container');
             if (previewContainer) {
                 previewContainer.innerHTML = buildHtmlBody(bodyText, group);
@@ -2620,22 +2678,32 @@ ${plainSignature}`;
         function buildHtmlBody(plainText, group) {
             const cfg = getEmailSettings();
             const multiCourse = currentScanData.course_shells_scanned && currentScanData.course_shells_scanned.length > 1;
-            const courseLabel = currentScanData.course_code || currentScanData.course_shell;
+            const courseShellLabel = currentScanData.course_shell || currentScanData.course_code;
             const taFullName = group.ta_name.trim();
             const courseDisplay = multiCourse
                 ? (currentScanData.course_shells_scanned || []).join(', ')
-                : courseLabel;
+                : courseShellLabel;
+
+            const overview = currentScanData.course_overview || {
+                total_posts: group.queries.length,
+                total_replied: 0,
+                within_sla: 0,
+                outside_sla: 0,
+                avg_response_hr: 0,
+                pending_count: currentScanData.total_pending || group.queries.length,
+                avg_pending_hr: 0
+            };
 
             const queriesHtml = group.queries.map((q, idx) => {
-                const course = q.course_code || q.course_shell || courseLabel;
+                const course = q.course_shell || q.course_code || courseShellLabel;
                 return `
-                <tr style="background: #ffffff; border-bottom: 1px solid #e5e7eb;">
+                <tr style="background: #ffffff; border-bottom: 1px solid #e5e7eb; text-align: center;">
                     <td style="padding: 7px 10px; font-size: 12px; color: #6b7280; font-weight: 600; text-align: center; border-right: 1px solid #e5e7eb; width: 30px;">${idx + 1}</td>
-                    <td style="padding: 7px 10px; font-size: 12px; font-weight: 600; color: #1e40af; border-right: 1px solid #e5e7eb; white-space: nowrap;">${course}</td>
-                    <td style="padding: 7px 10px; font-size: 13px; font-weight: 600; color: #111827; border-right: 1px solid #e5e7eb;">${q.learner_name}</td>
-                    <td style="padding: 7px 10px; font-size: 12px; color: #2563eb; border-right: 1px solid #e5e7eb;"><a href="mailto:${q.learner_email}" style="color: #2563eb; text-decoration: underline;">${q.learner_email}</a></td>
-                    <td style="padding: 7px 10px; font-size: 12px; color: #374151; border-right: 1px solid #e5e7eb;">${q.topic}</td>
-                    <td style="padding: 7px 10px; font-size: 11px; color: #6b7280; white-space: nowrap;">${q.created_on}</td>
+                    <td style="padding: 7px 10px; font-size: 12px; font-weight: 600; color: #1e40af; border-right: 1px solid #e5e7eb; text-align: center; white-space: nowrap;">${course}</td>
+                    <td style="padding: 7px 10px; font-size: 13px; font-weight: 600; color: #111827; border-right: 1px solid #e5e7eb; text-align: center;">${q.learner_name}</td>
+                    <td style="padding: 7px 10px; font-size: 12px; color: #2563eb; border-right: 1px solid #e5e7eb; text-align: center;"><a href="mailto:${q.learner_email}" style="color: #2563eb; text-decoration: underline;">${q.learner_email}</a></td>
+                    <td style="padding: 7px 10px; font-size: 12px; color: #374151; border-right: 1px solid #e5e7eb; text-align: center;">${q.topic}</td>
+                    <td style="padding: 7px 10px; font-size: 11px; color: #6b7280; text-align: center; white-space: nowrap;">${q.created_on}</td>
                 </tr>`;
             }).join('');
 
@@ -2659,33 +2727,70 @@ ${plainSignature}`;
 
               <p style="margin: 0 0 14px 0; font-size: 13px; color: #374151;">I hope you are doing well.</p>
 
-              <p style="margin: 0 0 18px 0; font-size: 13px; color: #374151; line-height: 1.6;">
+              <p style="margin: 0 0 16px 0; font-size: 13px; color: #374151; line-height: 1.6;">
                 This is a general reminder that the following learners assigned to you have raised queries on the Discussion Board for the course
-                <strong>${courseDisplay}</strong>, and currently have pending queries awaiting a response on the Canvas Discussion Board. Please find below the summary of pending queries:
+                <strong>${courseDisplay}</strong>, and currently have pending queries awaiting a response on the Canvas Discussion Board.
               </p>
 
-              <!-- Clean Corporate Table (matching Screenshot 2) -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; width: 100%; margin: 16px 0 20px 0; font-size: 12px; border: 1px solid #d1d5db;">
+              <!-- Discussion Summary Table (At the top, Center Aligned, No TA repetition) -->
+              <div style="margin: 16px 0 18px 0; border: 1px solid #d1d5db; border-radius: 8px; overflow: hidden; background: #ffffff;">
+                <div style="background: #1e3a8a; padding: 9px 14px; color: #ffffff; font-weight: 700; font-size: 12px; letter-spacing: 0.3px; text-align: center;">
+                  DISCUSSION SUMMARY
+                </div>
+                <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; width: 100%; font-size: 11px; text-align: center;">
+                  <thead>
+                    <tr style="background: #f1f5f9; border-bottom: 1px solid #cbd5e1;">
+                      <th style="padding: 8px 10px; font-weight: 700; color: #1e293b; text-align: center; border-right: 1px solid #cbd5e1; width: 16%;">Total Post</th>
+                      <th colspan="3" style="padding: 8px 10px; font-weight: 700; color: #166534; background: #dcfce7; text-align: center; border-right: 1px solid #cbd5e1; width: 50%;">Total Response</th>
+                      <th colspan="2" style="padding: 8px 10px; font-weight: 700; color: #991b1b; background: #fee2e2; text-align: center; width: 34%;">Pending Response</th>
+                    </tr>
+                    <tr style="background: #f8fafc; border-bottom: 1px solid #cbd5e1; font-size: 10px; color: #475569;">
+                      <th style="padding: 6px 8px; font-weight: 600; text-align: center; border-right: 1px solid #cbd5e1;">Total Queries</th>
+                      <th style="padding: 6px 8px; font-weight: 600; text-align: center; border-right: 1px solid #cbd5e1;">Within SLA</th>
+                      <th style="padding: 6px 8px; font-weight: 600; text-align: center; border-right: 1px solid #cbd5e1;">Outside SLA</th>
+                      <th style="padding: 6px 8px; font-weight: 600; text-align: center; border-right: 1px solid #cbd5e1;">Avg. Response HR</th>
+                      <th style="padding: 6px 8px; font-weight: 600; text-align: center; border-right: 1px solid #cbd5e1;">Pending Count</th>
+                      <th style="padding: 6px 8px; font-weight: 600; text-align: center;">Avg</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style="text-align: center; font-size: 11px; font-weight: 600; color: #0f172a;">
+                      <td style="padding: 9px; border-right: 1px solid #cbd5e1; background: #f8fafc; text-align: center;">${overview.total_posts}</td>
+                      <td style="padding: 9px; border-right: 1px solid #cbd5e1; color: #15803d; text-align: center;">${overview.within_sla}</td>
+                      <td style="padding: 9px; border-right: 1px solid #cbd5e1; color: #b91c1c; text-align: center;">${overview.outside_sla}</td>
+                      <td style="padding: 9px; border-right: 1px solid #cbd5e1; text-align: center;">${overview.avg_response_hr} hrs</td>
+                      <td style="padding: 9px; border-right: 1px solid #cbd5e1; color: #b91c1c; font-weight: 700; text-align: center;">${overview.pending_count}</td>
+                      <td style="padding: 9px; color: #64748b; text-align: center;">${overview.avg_pending_hr} hrs</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <p style="margin: 18px 0 8px 0; font-size: 13px; color: #374151; font-weight: 600;">
+                Pending Learner Queries Details:
+              </p>
+
+              <!-- Clean Corporate Table (Learner Details, Center Aligned) -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; width: 100%; margin: 8px 0 20px 0; font-size: 12px; border: 1px solid #d1d5db; text-align: center;">
                 <thead>
-                  <tr style="background: #f9fafb; border-bottom: 1px solid #d1d5db;">
+                  <tr style="background: #f9fafb; border-bottom: 1px solid #d1d5db; text-align: center;">
                     <th style="padding: 8px 10px; font-size: 11px; font-weight: 700; color: #374151; text-align: center; border-right: 1px solid #e5e7eb; width: 30px;">#</th>
-                    <th style="padding: 8px 10px; font-size: 11px; font-weight: 700; color: #374151; text-align: left; border-right: 1px solid #e5e7eb;">Course</th>
-                    <th style="padding: 8px 10px; font-size: 11px; font-weight: 700; color: #374151; text-align: left; border-right: 1px solid #e5e7eb;">Learner Name</th>
-                    <th style="padding: 8px 10px; font-size: 11px; font-weight: 700; color: #374151; text-align: left; border-right: 1px solid #e5e7eb;">Student Email</th>
-                    <th style="padding: 8px 10px; font-size: 11px; font-weight: 700; color: #374151; text-align: left; border-right: 1px solid #e5e7eb;">Discussion Topic</th>
-                    <th style="padding: 8px 10px; font-size: 11px; font-weight: 700; color: #374151; text-align: left;">Date Raised</th>
+                    <th style="padding: 8px 10px; font-size: 11px; font-weight: 700; color: #374151; text-align: center; border-right: 1px solid #e5e7eb;">Course Shell</th>
+                    <th style="padding: 8px 10px; font-size: 11px; font-weight: 700; color: #374151; text-align: center; border-right: 1px solid #e5e7eb;">Learner Name</th>
+                    <th style="padding: 8px 10px; font-size: 11px; font-weight: 700; color: #374151; text-align: center; border-right: 1px solid #e5e7eb;">Student Email</th>
+                    <th style="padding: 8px 10px; font-size: 11px; font-weight: 700; color: #374151; text-align: center; border-right: 1px solid #e5e7eb;">Discussion Topic</th>
+                    <th style="padding: 8px 10px; font-size: 11px; font-weight: 700; color: #374151; text-align: center;">Date Raised</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${queriesHtml}
                   <tr style="background: #f9fafb; border-top: 1px solid #e5e7eb;">
-                    <td colspan="6" style="padding: 6px 10px; font-size: 11px; color: #6b7280; font-style: italic; text-align: right;">
+                    <td colspan="6" style="padding: 6px 10px; font-size: 11px; color: #6b7280; font-style: italic; text-align: center;">
                       Showing ${totalCount} of ${totalCount} pending ${totalCount === 1 ? 'query' : 'queries'}
                     </td>
                   </tr>
                 </tbody>
               </table>
-
 
               <!-- Exact Signature from Screenshot 1 -->
               <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; color: #1e293b; line-height: 1.5; margin-top: 24px; padding-top: 14px; border-top: 1px solid #f1f5f9;">
@@ -2730,8 +2835,8 @@ ${plainSignature}`;
             if (sendBtn) { sendBtn.innerHTML = `<span>${isTest ? 'Sending Test...' : 'Sending...'}</span>`; sendBtn.disabled = true; }
 
             const subjectInput = document.getElementById('draft-subject-input');
-            const courseLabel = currentScanData.course_code || currentScanData.course_shell;
-            const subject = subjectInput ? subjectInput.value.trim() : `Discussion Forum Queries - ${courseLabel} - Gentle Reminder`;
+            const courseShellLabel = currentScanData.course_shell || currentScanData.course_code;
+            const subject = subjectInput && subjectInput.value.trim() ? subjectInput.value.trim() : `Gentle Reminder | Discussion Forum Queries`;
             const textarea = document.getElementById('draft-body-textarea');
             const bodyText = textarea ? textarea.value.trim() : '';
             const bodyHtml = buildHtmlBody(bodyText, group);
@@ -2750,6 +2855,7 @@ ${plainSignature}`;
                         to_email: group.ta_email,
                         cc_emails: isTest ? '' : cfg.cc_emails,
                         subject: subject,
+                        course_shell: courseShellLabel,
                         body_text: bodyText,
                         body_html: bodyHtml,
                         ta_name: group.ta_name,
@@ -3183,15 +3289,16 @@ ${plainSignature}`;
                 <div class="flex items-center gap-2 flex-grow max-w-2xl">
                     <div class="relative flex-grow">
                         <input type="text" id="email-search-course-shell" placeholder="Course Shell (e.g. EDU-823-UED10--Fall-2026, or ALL)"
+                            onkeydown="if(event.key==='Enter') scanCoursePendingQueries()"
                             class="w-full bg-black/40 border border-white/10 rounded-lg pl-3 pr-2 py-1.5 text-xs text-white placeholder-white/30 focus:outline-none focus:border-[#EE2C3C]/60 font-mono">
                     </div>
-                    <!-- Presets: EDU 823, EDU 829, ALL, + -->
-                    <div class="flex items-center gap-1 flex-shrink-0">
+                    <!-- Presets container (auto-populated with audited course tabs) -->
+                    <div id="email-preset-buttons-container" class="flex items-center gap-1 flex-shrink-0">
                         <button type="button" onclick="selectEmailPreset('EDU-823-UED10--Fall-2026')" class="text-[10px] font-semibold px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 transition-all">
                             EDU 823
                         </button>
-                        <button type="button" onclick="selectEmailPreset('EDU-829')" class="text-[10px] font-semibold px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 transition-all">
-                            EDU 829
+                        <button type="button" onclick="selectEmailPreset('EDU-894-UED7--Fall-2026')" class="text-[10px] font-semibold px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 transition-all">
+                            EDU 894
                         </button>
                         <button type="button" onclick="selectEmailPreset('ALL')" class="text-[10px] font-semibold px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 transition-all">
                             ALL

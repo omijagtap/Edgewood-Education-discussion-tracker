@@ -94,13 +94,80 @@ def push_to_google_sheet(flat_rows, sis_id, course_name):
         print(f"  Worksheet {safe_title} not found. Creating...")
         ws = sh.add_worksheet(title=safe_title, rows="200", cols="20")
 
+    # Pre-calculate overview metrics and TA performance stats
+    valid_rows = [
+        r for r in flat_rows 
+        if r.get("Learner Name") and r.get("Learner Name") not in ("(No student posts yet)", "N/A", "Unknown", "User#None", "")
+    ]
+    unique_learners = len(set(r.get("Learner Name") for r in valid_rows))
+    total_queries   = len(valid_rows)
+    total_replied   = len([r for r in valid_rows if str(r.get("Replied", "")).startswith("Yes") or "replied" in str(r.get("Replied", "")).lower()])
+    pending_queries = len([r for r in valid_rows if str(r.get("Replied", "")).startswith("No")])
+    durations       = [r.get("Duration (Hours)") for r in valid_rows if isinstance(r.get("Duration (Hours)"), (int, float))]
+    avg_course_time = round(sum(durations)/len(durations), 2) if durations else 0
+
+    within_sla  = len([r for r in valid_rows if "On Time" in str(r.get("SLA Status", ""))])
+    outside_sla = len([r for r in valid_rows if "Delayed" in str(r.get("SLA Status", ""))])
+
+    # Pending queries average elapsed duration (hours)
+    now_dt = datetime.now()
+    pending_durs = []
+    for r in valid_rows:
+        if str(r.get("Replied", "")).startswith("No"):
+            created_dt = parse_date_string(r.get("Created On"))
+            if created_dt:
+                p_hrs = max(0.0, round((now_dt - created_dt).total_seconds() / 3600.0, 1))
+                pending_durs.append(p_hrs)
+    avg_pending_time = round(sum(pending_durs)/len(pending_durs), 2) if pending_durs else 0
+
+    # TA Performance breakdown calculations
+    ta_stats = {}
+    for r in valid_rows:
+        assigned_ta = (r.get("Assigned TA (Needs to Reply)") or "").strip()
+        first_resp  = (r.get("First Responder") or "").strip()
+        sla_st      = str(r.get("SLA Status", "")).strip()
+        rep_val     = str(r.get("Replied", "")).strip()
+        dur_val     = r.get("Duration (Hours)")
+
+        primary_ta = assigned_ta if (assigned_ta and assigned_ta != "Unassigned") else (first_resp or "Unassigned")
+        if primary_ta not in ta_stats:
+            ta_stats[primary_ta] = {"pending": 0, "replies": 0, "ontime": 0, "delayed": 0, "durs": []}
+
+        if rep_val.startswith("No") or "Pending" in sla_st:
+            ta_stats[primary_ta]["pending"] += 1
+        else:
+            resp_key = first_resp if first_resp else primary_ta
+            if resp_key not in ta_stats:
+                ta_stats[resp_key] = {"pending": 0, "replies": 0, "ontime": 0, "delayed": 0, "durs": []}
+            ta_stats[resp_key]["replies"] += 1
+            if "On Time" in sla_st:
+                ta_stats[resp_key]["ontime"] += 1
+            if "Delayed" in sla_st:
+                ta_stats[resp_key]["delayed"] += 1
+            if isinstance(dur_val, (int, float)):
+                ta_stats[resp_key]["durs"].append(dur_val)
+
     # Construct Values Matrix
     values = []
 
     # Row 1: Title Block
     values.append([f"EDGEWOOD DISCUSSION BOARD AUDIT  |  {course_name} ({sis_id})"] + [""] * 13)
 
-    # Row 2: Headers
+    # Row 2: Spacer
+    values.append([""] * 14)
+
+    # Row 3 to 6: COURSE OVERVIEW TABLE (JUST ABOVE LEARNER DETAILS TABLE)
+    sum_start = 3
+    values.append(["COURSE OVERVIEW"] + [""] * 13)
+    values.append(["Total Post", "Total Response", "", "", "Pending Response", ""] + [""] * 8)
+    values.append(["Total Queries", "Within SLA", "Outside SLA", "Avg. Response HR", "Pending Count", "Avg"] + [""] * 8)
+    values.append([total_queries, within_sla, outside_sla, avg_course_time, pending_queries, avg_pending_time] + [""] * 8)
+
+    # Row 7: Spacer
+    values.append([""] * 14)
+
+    # Row 8: Learner Details Table Headers (JUST BELOW SUMMARY TABLE)
+    hdr_row = 8
     headers = [
         "Cohort", "Course Name", "Topic", "Learner Name", "Student ID", "Learner Email", 
         "Created On", "Replied", "Replied On", "Duration (Hours)", "SLA Status", 
@@ -108,10 +175,10 @@ def push_to_google_sheet(flat_rows, sis_id, course_name):
     ]
     values.append(headers)
 
-    # Row 3 to N+2: Data
+    # Row 9 to last_row: Learner Data
     if not flat_rows:
         values.append(["No discussion boards or learner posts found in this course."] + [""] * 13)
-        last_row = 3
+        last_row = 9
     else:
         for r in flat_rows:
             row_vals = [
@@ -131,59 +198,20 @@ def push_to_google_sheet(flat_rows, sis_id, course_name):
                 r.get("Assigned TA Email", r.get("Replied By (Email)", ""))
             ]
             values.append(row_vals)
-        last_row = len(flat_rows) + 2
+        last_row = len(values)
 
     # Spacer
     values.append([""] * 14)
-    values.append([""] * 14)
 
-    # Overview calculations - filter for valid learner rows to guarantee exact consistency
-    valid_rows = [
-        r for r in flat_rows 
-        if r.get("Learner Name") and r.get("Learner Name") not in ("(No student posts yet)", "N/A", "Unknown", "User#None", "")
-    ]
-    unique_learners = len(set(r.get("Learner Name") for r in valid_rows))
-    total_queries   = len(valid_rows)
-    total_replied   = len([r for r in valid_rows if str(r.get("Replied", "")).startswith("Yes") or "replied" in str(r.get("Replied", "")).lower()])
-    pending_queries = len([r for r in valid_rows if str(r.get("Replied", "")).startswith("No")])
-    durations       = [r.get("Duration (Hours)") for r in valid_rows if isinstance(r.get("Duration (Hours)"), (int, float))]
-    avg_course_time = round(sum(durations)/len(durations), 2) if durations else 0
-
-    sum_start = last_row + 3
-
-    values.append(["COURSE OVERVIEW"] + [""] * 13)
-    values.append(["Total Unique Learners", unique_learners] + [""] * 12)
-    values.append(["Total Queries Found", total_queries] + [""] * 12)
-    values.append(["Total Replied (TAs)", total_replied] + [""] * 12)
-    values.append(["Pending Queries", pending_queries] + [""] * 12)
-    values.append(["Avg Course Response Time (Hrs)", avg_course_time] + [""] * 12)
-
-    # Spacer
-    values.append([""] * 14)
-    values.append([""] * 14)
-
-    # TA Performance breakdown calculations
-    ta_stats = {}
-    for r in flat_rows:
-        ta_name = r.get("First Responder")
-        if not ta_name: continue
-        if ta_name not in ta_stats:
-            ta_stats[ta_name] = {"replies": 0, "ontime": 0, "delayed": 0, "durs": []}
-        
-        ta_stats[ta_name]["replies"] += 1
-        if r.get("SLA Status") == "On Time Response": ta_stats[ta_name]["ontime"] += 1
-        if r.get("SLA Status") == "Delayed Response": ta_stats[ta_name]["delayed"] += 1
-        if isinstance(r.get("Duration (Hours)"), (int, float)):
-            ta_stats[ta_name]["durs"].append(r["Duration (Hours)"])
-
-    ta_start = sum_start + 7
+    # TA Performance Breakdown Table
+    ta_start = len(values) + 1
     values.append(["TA PERFORMANCE BREAKDOWN (TREND ANALYSIS)"] + [""] * 13)
-    values.append(["TA Name", "Replies", "On-Time", "Delayed", "Avg Time (Hrs)", "SLA Violation %"] + [""] * 8)
+    values.append(["TA Name", "Pending Response", "Replies", "On-Time", "Delayed", "Avg Time (Hrs)", "SLA Violation %"] + [""] * 7)
 
     for ta_name, s in ta_stats.items():
         avg_t = round(sum(s["durs"])/len(s["durs"]), 2) if s["durs"] else 0
         sla_v = round((s["delayed"]/s["replies"])*100, 1) if s["replies"] > 0 else 0
-        values.append([ta_name, s["replies"], s["ontime"], s["delayed"], avg_t, f"{sla_v}%"] + [""] * 8)
+        values.append([ta_name, s["pending"], s["replies"], s["ontime"], s["delayed"], avg_t, f"{sla_v}%"] + [""] * 7)
 
     # Write all data at once
     ws.update(range_name=f"A1:N{len(values)}", values=values)
@@ -191,14 +219,14 @@ def push_to_google_sheet(flat_rows, sis_id, course_name):
     # --- Apply formatting ---
     print("  Formatting Google Sheet cells (using batch updates)...")
     
-    # 1. Merged Regions (Note: Merges are still structural but we execute them first)
+    # 1. Merged Regions
     ws.merge_cells("A1:N1")
     if not flat_rows:
-        ws.merge_cells("A3:N3")
+        ws.merge_cells("A9:N9")
     
-    ws.merge_cells(f"A{sum_start}:D{sum_start}")
-    for i in range(1, 5):
-        ws.merge_cells(f"B{sum_start+i}:D{sum_start+i}")
+    ws.merge_cells(f"A{sum_start}:F{sum_start}")
+    ws.merge_cells(f"B{sum_start+1}:D{sum_start+1}")
+    ws.merge_cells(f"E{sum_start+1}:F{sum_start+1}")
 
     ws.merge_cells(f"A{ta_start}:G{ta_start}")
 
@@ -219,7 +247,8 @@ def push_to_google_sheet(flat_rows, sis_id, course_name):
         ))
 
         # Format Headers (Row 2)
-        formatter.format_cell_range(ws, "A2:N2", CellFormat(
+        # Format Learner Table Headers (Row 8)
+        formatter.format_cell_range(ws, "A8:N8", CellFormat(
             backgroundColor=hex_to_color(C_HDR_BG),
             textFormat=TextFormat(bold=True, fontSize=10, foregroundColor=color_white),
             horizontalAlignment="CENTER",
@@ -227,15 +256,15 @@ def push_to_google_sheet(flat_rows, sis_id, course_name):
             borders=borders_all
         ))
 
-        # Data Rows formatting
+        # Data Rows formatting (Row 9+)
         if not flat_rows:
-            formatter.format_cell_range(ws, "A3:N3", CellFormat(
+            formatter.format_cell_range(ws, "A9:N9", CellFormat(
                 textFormat=TextFormat(italic=True, foregroundColor=color_gray),
                 horizontalAlignment="CENTER",
                 verticalAlignment="MIDDLE"
             ))
         else:
-            for ri in range(3, last_row + 1):
+            for ri in range(9, last_row + 1):
                 alt_color = C_ALT_BG if ri % 2 == 0 else "FFFFFF"
                 
                 # Apply base alternating background and borders
@@ -246,8 +275,8 @@ def push_to_google_sheet(flat_rows, sis_id, course_name):
                     borders=borders_all
                 ))
 
-                # Retrieve from flat_rows in memory instead of ws.cell()!
-                r = flat_rows[ri - 3]
+                # Retrieve from flat_rows in memory (index = ri - 9)
+                r = flat_rows[ri - 9]
                 val_replied = str(r.get("Replied", "")).strip()
                 val_sla = str(r.get("SLA Status", "")).strip()
                 
@@ -283,32 +312,67 @@ def push_to_google_sheet(flat_rows, sis_id, course_name):
                         horizontalAlignment="CENTER"
                     ))
 
-        # Format Course Overview Table
-        formatter.format_cell_range(ws, f"A{sum_start}:D{sum_start}", CellFormat(
+        # Format Course Overview Table Title
+        formatter.format_cell_range(ws, f"A{sum_start}:F{sum_start}", CellFormat(
             backgroundColor=hex_to_color("4472C4"),
-            textFormat=TextFormat(bold=True, fontSize=10, foregroundColor=color_white),
+            textFormat=TextFormat(bold=True, fontSize=11, foregroundColor=color_white),
             horizontalAlignment="CENTER",
             verticalAlignment="MIDDLE",
             borders=borders_all
         ))
 
-        for i in range(1, 5):
-            formatter.format_cell_range(ws, f"A{sum_start+i}:D{sum_start+i}", CellFormat(
-                textFormat=TextFormat(bold=(i==0), fontSize=10, foregroundColor=color_black),
-                verticalAlignment="MIDDLE",
-                borders=borders_all
-            ))
+        # Category Headers (Row 1)
+        formatter.format_cell_range(ws, f"A{sum_start+1}", CellFormat(
+            backgroundColor=hex_to_color("1F3864"),
+            textFormat=TextFormat(bold=True, fontSize=10, foregroundColor=color_white),
+            horizontalAlignment="CENTER",
+            verticalAlignment="MIDDLE",
+            borders=borders_all
+        ))
+        formatter.format_cell_range(ws, f"B{sum_start+1}:D{sum_start+1}", CellFormat(
+            backgroundColor=hex_to_color("E2EFDA"),
+            textFormat=TextFormat(bold=True, fontSize=10, foregroundColor=hex_to_color("375623")),
+            horizontalAlignment="CENTER",
+            verticalAlignment="MIDDLE",
+            borders=borders_all
+        ))
+        formatter.format_cell_range(ws, f"E{sum_start+1}:F{sum_start+1}", CellFormat(
+            backgroundColor=hex_to_color("FCE4D6"),
+            textFormat=TextFormat(bold=True, fontSize=10, foregroundColor=hex_to_color("C00000")),
+            horizontalAlignment="CENTER",
+            verticalAlignment="MIDDLE",
+            borders=borders_all
+        ))
 
-        # Format TA Breakdown Table
+        # Sub Headers (Row 2)
+        formatter.format_cell_range(ws, f"A{sum_start+2}:F{sum_start+2}", CellFormat(
+            backgroundColor=hex_to_color("F2F2F2"),
+            textFormat=TextFormat(bold=True, fontSize=9, foregroundColor=color_black),
+            horizontalAlignment="CENTER",
+            verticalAlignment="MIDDLE",
+            borders=borders_all
+        ))
+
+        # Data Row (Row 3)
+        formatter.format_cell_range(ws, f"A{sum_start+3}:F{sum_start+3}", CellFormat(
+            backgroundColor=hex_to_color("FFFFFF"),
+            textFormat=TextFormat(bold=True, fontSize=10, foregroundColor=color_black),
+            horizontalAlignment="CENTER",
+            verticalAlignment="MIDDLE",
+            borders=borders_all
+        ))
+
+        # Format TA Breakdown Table Title
         formatter.format_cell_range(ws, f"A{ta_start}:G{ta_start}", CellFormat(
             backgroundColor=hex_to_color("C00000"),
-            textFormat=TextFormat(bold=True, fontSize=10, foregroundColor=color_white),
+            textFormat=TextFormat(bold=True, fontSize=11, foregroundColor=color_white),
             horizontalAlignment="CENTER",
             verticalAlignment="MIDDLE",
             borders=borders_all
         ))
 
-        formatter.format_cell_range(ws, f"A{ta_start+1}:F{ta_start+1}", CellFormat(
+        # TA Column Headers
+        formatter.format_cell_range(ws, f"A{ta_start+1}:G{ta_start+1}", CellFormat(
             backgroundColor=hex_to_color("D9D9D9"),
             textFormat=TextFormat(bold=True, fontSize=10, foregroundColor=color_black),
             horizontalAlignment="CENTER",
@@ -318,14 +382,14 @@ def push_to_google_sheet(flat_rows, sis_id, course_name):
 
         ta_count = len(ta_stats)
         for i in range(2, ta_count + 2):
-            formatter.format_cell_range(ws, f"A{ta_start+i}:F{ta_start+i}", CellFormat(
+            formatter.format_cell_range(ws, f"A{ta_start+i}:G{ta_start+i}", CellFormat(
                 textFormat=TextFormat(fontSize=10, foregroundColor=color_black),
                 verticalAlignment="MIDDLE",
                 borders=borders_all
             ))
 
-    # Lock Headers / Freeze panes
-    ws.freeze(rows=2)
+    # Lock Headers / Freeze panes (locks Course Overview & Learner table headers)
+    ws.freeze(rows=8)
     
     # Auto-resize columns
     ws.columns_auto_resize(1, 14)
@@ -544,10 +608,14 @@ def get_dashboard_data():
     for title, values in sheet_data_list:
         if len(values) < 2:
             continue
-        headers = values[1]
-        if len(headers) > 7 and headers[0] == "Cohort" and headers[7] == "Replied":
-            for row in values[2:]:
-                if not row or not row[0] or row[0].strip() == "" or "COURSE OVERVIEW" in row[0]:
+        header_idx = None
+        for idx, row in enumerate(values):
+            if row and len(row) > 7 and row[0].strip().lower() == "cohort" and row[7].strip().lower() == "replied":
+                header_idx = idx
+                break
+        if header_idx is not None:
+            for row in values[header_idx + 1:]:
+                if not row or not row[0] or row[0].strip() == "" or "COURSE OVERVIEW" in row[0] or "TA PERFORMANCE" in row[0]:
                     break
                 padded = row + [""] * (14 - len(row))
                 
@@ -623,20 +691,36 @@ def get_dashboard_data():
     return result
 
 
-def _scan_single_worksheet(sh, course_shell_id, pending_by_ta_agg):
+def _scan_single_worksheet(sh, course_shell_id, pending_by_ta_agg, ta_stats_agg=None, course_stats_agg=None):
     """Internal helper: scans one worksheet and aggregates pending queries into pending_by_ta_agg dict.
+    Also computes full course overview stats and per-TA response metrics.
     Returns (found, ws_title, course_code, local_pending_count)."""
+    if ta_stats_agg is None:
+        ta_stats_agg = {}
+    if course_stats_agg is None:
+        course_stats_agg = {
+            "total_posts": 0, "total_replied": 0, "within_sla": 0, "outside_sla": 0,
+            "pending_count": 0, "durs": [], "pending_durs": []
+        }
+
     clean_target = str(course_shell_id).strip()
     target_norm = normalize_course_code(clean_target)
     safe_target = re.sub(r'[:\\\/\?\*\[\]]', '_', clean_target)[:31].lower()
+    alphanumeric_target = re.sub(r'[\s\-_]+', '', clean_target).lower()
 
     ws = None
     for w in sh.worksheets():
         w_title_lower = w.title.lower()
+        w_title_alpha = re.sub(r'[\s\-_]+', '', w_title_lower)
+        if w_title_lower.startswith("importdata_ta") or w_title_lower.startswith("ta details"):
+            continue
         if w_title_lower == clean_target.lower() or w_title_lower == safe_target:
             ws = w
             break
-        if target_norm.lower() in w_title_lower and not w_title_lower.startswith("importdata_ta") and not w_title_lower.startswith("ta details"):
+        if target_norm and target_norm.lower() in w_title_lower:
+            ws = w
+            break
+        if alphanumeric_target and alphanumeric_target in w_title_alpha:
             ws = w
             break
 
@@ -648,8 +732,17 @@ def _scan_single_worksheet(sh, course_shell_id, pending_by_ta_agg):
     if len(rows) < 3:
         return True, ws.title, target_norm, 0
 
-    for r in rows[2:]:
-        if not r or not r[0] or "COURSE OVERVIEW" in r[0]:
+    now_dt = datetime.now()
+
+    header_idx = None
+    for idx, r in enumerate(rows):
+        if r and len(r) > 7 and r[0].strip().lower() == "cohort" and r[7].strip().lower() == "replied":
+            header_idx = idx
+            break
+    start_row = (header_idx + 1) if header_idx is not None else 2
+
+    for r in rows[start_row:]:
+        if not r or not r[0] or "COURSE OVERVIEW" in r[0] or "TA PERFORMANCE" in r[0]:
             break
         padded = r + [""] * (14 - len(r))
         cohort = padded[0].strip()
@@ -660,40 +753,89 @@ def _scan_single_worksheet(sh, course_shell_id, pending_by_ta_agg):
         l_email = padded[5].strip().lower()
         created_on = padded[6].strip()
         replied = padded[7].strip()
+        replied_on = padded[8].strip()
+        duration_str = padded[9].strip()
+        sla_status = padded[10].strip()
+        first_responder = padded[11].strip()
+        assigned_ta_col = padded[12].strip() if len(padded) > 12 else ""
+        assigned_ta_email_col = padded[13].strip() if len(padded) > 13 else ""
 
         if not l_name or l_name in ("(No student posts yet)", "N/A", "Unknown", "User#None"):
             continue
 
-        is_pending = (replied == "No" or replied.startswith("No") or "Pending" in padded[10])
-        if not is_pending:
-            continue
+        course_stats_agg["total_posts"] += 1
 
-        local_pending += 1
+        # Determine assigned TA from mapping or sheet column
         ta_info = get_assigned_ta(c_name, l_email, s_id)
         if ta_info:
             ta_name = ta_info.get("ta_name", "Assigned TA")
             ta_email = ta_info.get("ta_email", "")
+        elif assigned_ta_col:
+            ta_name = assigned_ta_col
+            ta_email = assigned_ta_email_col
         else:
             ta_name = "Unassigned / General Pool"
             ta_email = ""
 
-        key = (ta_name, ta_email)
-        if key not in pending_by_ta_agg:
-            pending_by_ta_agg[key] = {
-                "ta_name": ta_name,
-                "ta_email": ta_email,
-                "queries": []
+        if ta_name not in ta_stats_agg:
+            ta_stats_agg[ta_name] = {
+                "pending": 0, "replies": 0, "ontime": 0, "delayed": 0,
+                "durs": [], "pending_durs": []
             }
-        pending_by_ta_agg[key]["queries"].append({
-            "learner_name": l_name,
-            "student_id": s_id,
-            "learner_email": l_email,
-            "topic": topic,
-            "created_on": created_on,
-            "cohort": cohort,
-            "course_shell": ws.title,
-            "course_code": c_name
-        })
+
+        is_pending = (replied == "No" or replied.startswith("No") or "Pending" in sla_status)
+        if is_pending:
+            local_pending += 1
+            course_stats_agg["pending_count"] += 1
+            ta_stats_agg[ta_name]["pending"] += 1
+
+            c_dt = parse_date_string(created_on)
+            if c_dt:
+                age_hrs = max(0.0, round((now_dt - c_dt).total_seconds() / 3600.0, 1))
+                course_stats_agg["pending_durs"].append(age_hrs)
+                ta_stats_agg[ta_name]["pending_durs"].append(age_hrs)
+
+            key = (ta_name, ta_email)
+            if key not in pending_by_ta_agg:
+                pending_by_ta_agg[key] = {
+                    "ta_name": ta_name,
+                    "ta_email": ta_email,
+                    "queries": []
+                }
+            pending_by_ta_agg[key]["queries"].append({
+                "learner_name": l_name,
+                "student_id": s_id,
+                "learner_email": l_email,
+                "topic": topic,
+                "created_on": created_on,
+                "cohort": cohort,
+                "course_shell": ws.title,
+                "course_code": c_name
+            })
+        else:
+            course_stats_agg["total_replied"] += 1
+            responder = first_responder if (first_responder and first_responder != "N/A") else ta_name
+            if responder not in ta_stats_agg:
+                ta_stats_agg[responder] = {
+                    "pending": 0, "replies": 0, "ontime": 0, "delayed": 0,
+                    "durs": [], "pending_durs": []
+                }
+            ta_stats_agg[responder]["replies"] += 1
+
+            if "On Time" in sla_status:
+                course_stats_agg["within_sla"] += 1
+                ta_stats_agg[responder]["ontime"] += 1
+            elif "Delayed" in sla_status:
+                course_stats_agg["outside_sla"] += 1
+                ta_stats_agg[responder]["delayed"] += 1
+
+            if duration_str:
+                try:
+                    dur_val = float(duration_str)
+                    course_stats_agg["durs"].append(dur_val)
+                    ta_stats_agg[responder]["durs"].append(dur_val)
+                except ValueError:
+                    pass
 
     return True, ws.title, target_norm, local_pending
 
@@ -721,12 +863,24 @@ def get_pending_ta_summary(course_shell_input):
             shells.append(w.title)
 
     pending_by_ta_agg = {}  # key=(ta_name, ta_email)
+    course_stats_agg = {
+        "total_posts": 0,
+        "total_replied": 0,
+        "within_sla": 0,
+        "outside_sla": 0,
+        "pending_count": 0,
+        "durs": [],
+        "pending_durs": []
+    }
+    ta_stats_agg = {}
     total_pending = 0
     course_shells_found = []
     course_shells_missing = []
 
     for shell in shells:
-        found, ws_title, course_code, local_count = _scan_single_worksheet(sh, shell, pending_by_ta_agg)
+        found, ws_title, course_code, local_count = _scan_single_worksheet(
+            sh, shell, pending_by_ta_agg, ta_stats_agg, course_stats_agg
+        )
         if found:
             course_shells_found.append(ws_title)
             total_pending += local_count
@@ -739,11 +893,45 @@ def get_pending_ta_summary(course_shell_input):
             "error": f"No audited worksheets found for: {', '.join(course_shells_missing)}. Please run the audit first.",
             "course_shell": raw_input,
             "ta_groups": [],
-            "total_pending": 0
+            "total_pending": 0,
+            "course_overview": {
+                "total_posts": 0, "total_replied": 0, "within_sla": 0, "outside_sla": 0,
+                "avg_response_hr": 0, "pending_count": 0, "avg_pending_hr": 0
+            }
         }
 
     ta_groups = list(pending_by_ta_agg.values())
     ta_groups.sort(key=lambda x: len(x["queries"]), reverse=True)
+
+    # Attach performance stats to each TA group so pending TA info is never blank
+    for g in ta_groups:
+        s = ta_stats_agg.get(g["ta_name"]) or {}
+        durs = s.get("durs", [])
+        reps = s.get("replies", 0)
+        delays = s.get("delayed", 0)
+        g["stats"] = {
+            "pending": s.get("pending", len(g["queries"])),
+            "replies": reps,
+            "ontime": s.get("ontime", 0),
+            "delayed": delays,
+            "avg_time": round(sum(durs)/len(durs), 2) if durs else 0,
+            "sla_violation_pct": round((delays/reps)*100, 1) if reps > 0 else 0
+        }
+
+    c_durs = course_stats_agg["durs"]
+    c_p_durs = course_stats_agg["pending_durs"]
+    avg_resp = round(sum(c_durs)/len(c_durs), 2) if c_durs else 0
+    avg_pend = round(sum(c_p_durs)/len(c_p_durs), 2) if c_p_durs else 0
+
+    course_overview = {
+        "total_posts": course_stats_agg["total_posts"],
+        "total_replied": course_stats_agg["total_replied"],
+        "within_sla": course_stats_agg["within_sla"],
+        "outside_sla": course_stats_agg["outside_sla"],
+        "avg_response_hr": avg_resp,
+        "pending_count": course_stats_agg["pending_count"],
+        "avg_pending_hr": avg_pend
+    }
 
     primary_shell = course_shells_found[0] if len(course_shells_found) == 1 else ", ".join(course_shells_found)
     primary_code = normalize_course_code(course_shells_found[0]) if course_shells_found else raw_input
@@ -755,6 +943,7 @@ def get_pending_ta_summary(course_shell_input):
         "course_shells_scanned": course_shells_found,
         "course_shells_missing": course_shells_missing,
         "total_pending": total_pending,
+        "course_overview": course_overview,
         "ta_groups": ta_groups
     }
     if is_all:

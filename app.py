@@ -238,7 +238,8 @@ def send_ta_email():
     # ── Test Mode: redirect to sender's own inbox without altering email body ──
     actual_to = sender_email if is_test else to_email
     actual_cc = []           if is_test else [c.strip() for c in cc_emails_raw.replace(';', ',').split(',') if c.strip()]
-    default_sub = "Discussion Forum Queries - Gentle Reminder"
+    course_shell  = (data.get('course_shell') or '').strip()
+    default_sub   = "Gentle Reminder | Discussion Forum Queries"
     effective_subject = f"TEST_{subject or default_sub}" if is_test else (subject or default_sub)
 
     try:
