@@ -33,9 +33,12 @@ except ImportError:
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
 
+SCRIPT_DIR   = os.path.dirname(os.path.abspath(__file__))
+
 # Load environment variables
 try:
     from dotenv import load_dotenv
+    load_dotenv(os.path.join(SCRIPT_DIR, ".env"))
     load_dotenv()
 except ImportError:
     import subprocess
@@ -43,6 +46,7 @@ except ImportError:
     try:
         subprocess.check_call([sys.executable, "-m", "pip", "install", "python-dotenv"])
         from dotenv import load_dotenv
+        load_dotenv(os.path.join(SCRIPT_DIR, ".env"))
         load_dotenv()
     except Exception:
         pass
@@ -56,7 +60,6 @@ HEADERS      = {"Authorization": f"Bearer {ACCESS_TOKEN}" if ACCESS_TOKEN else "
 # [PERF] Persistent HTTP session — reuses TCP connections across all API calls
 SESSION      = requests.Session()
 SESSION.headers.update(HEADERS)
-SCRIPT_DIR   = os.path.dirname(os.path.abspath(__file__))
 
 # ──────────────────────────────────────────────────────────────────
 #  CANVAS API HELPERS
@@ -301,6 +304,23 @@ def get_cohort_and_course(sis_id, course_name_api):
     return cohort, course_code
 
 
+def is_graded_discussion(topic):
+    """
+    Check if a discussion topic is a Graded Discussion that should be excluded in Education courses.
+    Matches:
+      1. Canvas API native indicator: assignment_id is present (Canvas creates an assignment for graded discussions).
+      2. Title explicitly containing 'Graded' / '(Graded)' (case-insensitive, avoiding 'Ungraded').
+    """
+    if not topic:
+        return False
+    if topic.get("assignment_id") is not None:
+        return True
+    title = (topic.get("title") or "").strip()
+    if re.search(r'(?<!un)graded', title, re.IGNORECASE):
+        return True
+    return False
+
+
 def collect_consolidated_rows(course_id, sis_id, course_name_api):
     cohort, course_code = get_cohort_and_course(sis_id, course_name_api)
 
@@ -340,6 +360,10 @@ def collect_consolidated_rows(course_id, sis_id, course_name_api):
             ]
             for topic in disc_topics:
                 tid = topic["id"]
+                if is_graded_discussion(topic):
+                    print(f"  [i] Skipping Graded Discussion (Education Rule): [{mod_name}] >> {topic.get('title')}")
+                    processed_topic_ids.add(tid)
+                    continue
                 if tid not in queued_topic_ids:
                     queued_topic_ids.add(tid)
                     topics_queue.append((mod_name, topic))
@@ -350,6 +374,9 @@ def collect_consolidated_rows(course_id, sis_id, course_name_api):
     for topic in unprocessed_topics:
         # Avoid processing Announcements (which Canvas treats as discussion topics with a flag)
         if topic.get("type") == "Announcement" or topic.get("is_announcement"):
+            continue
+        if is_graded_discussion(topic):
+            print(f"  [i] Skipping Graded Discussion (Education Rule): [Independent] >> {topic.get('title')}")
             continue
         if topic["id"] not in queued_topic_ids:
             queued_topic_ids.add(topic["id"])
@@ -698,6 +725,9 @@ def build_excel_sheet(wb, flat_rows, sis_id, course_name):
     # Sanitize sheet title (Excel doesn't allow: : \ / ? * [ ])
     clean_title = re.sub(r'[:\\\/\?\*\[\]]', '_', sis_id)
     safe_title = clean_title[:31] # Max 31 chars
+
+    # Education condition: exclude Graded Discussions
+    flat_rows = [r for r in flat_rows if not re.search(r'(?<!un)graded', str(r.get("Topic", "")), re.IGNORECASE)]
 
     if "Sheet" in wb.sheetnames and len(wb.sheetnames) == 1 and wb.active.title == "Sheet":
         ws = wb.active

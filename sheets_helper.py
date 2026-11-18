@@ -94,6 +94,12 @@ def push_to_google_sheet(flat_rows, sis_id, course_name):
         print(f"  Worksheet {safe_title} not found. Creating...")
         ws = sh.add_worksheet(title=safe_title, rows="200", cols="20")
 
+    # Education Tracker Condition: Exclude any Graded Discussions
+    flat_rows = [
+        r for r in flat_rows
+        if not re.search(r'(?<!un)graded', str(r.get("Topic", "")), re.IGNORECASE)
+    ]
+
     # Pre-calculate overview metrics and TA performance stats
     valid_rows = [
         r for r in flat_rows 
@@ -624,6 +630,9 @@ def get_dashboard_data():
                 cohort = padded[0].strip()
                 course_name = padded[1].strip()
                 topic = padded[2].strip()
+                # Education condition: exclude Graded Discussions
+                if re.search(r'(?<!un)graded', topic, re.IGNORECASE):
+                    continue
                 learner_name = padded[3].strip()
                 student_id = padded[4].strip()
                 learner_email = padded[5].strip()
